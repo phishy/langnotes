@@ -25,11 +25,11 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
   useEffect(() => {
     if (folderId) {
       fetchNotes()
-      
+
       // Subscribe to note changes
       const channel = supabase
         .channel('notes_changes')
-        .on('postgres_changes', 
+        .on('postgres_changes',
           {
             event: '*',
             schema: 'public',
@@ -126,9 +126,9 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
               <FileText className="mr-2 h-4 w-4" />
               {note.title}
             </div>
-            <p className="text-xs text-muted-foreground truncate w-full text-left pl-6">
+            {/* <p className="text-xs text-muted-foreground truncate w-full text-left pl-6">
               {note.content || 'Empty note...'}
-            </p>
+            </p> */}
           </Button>
           <Button
             variant="ghost"
