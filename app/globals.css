@@ -10,7 +10,7 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
+    --primary: 265 89% 78%;
     --primary-foreground: 0 0% 98%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
@@ -29,6 +29,25 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+  }
+
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(-10px); }
+    50% { transform: translateY(10px); }
+  }
+
+  .floating-phrase {
+    @apply absolute text-primary/10 pointer-events-none select-none font-serif;
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .floating-phrase:nth-child(even) {
+    animation: float-delayed 7s ease-in-out infinite;
   }
 
   .dark {
@@ -65,5 +84,31 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Custom markdown styling */
+  .ai-markdown {
+    @apply prose-headings:text-purple-400
+           prose-h1:text-2xl
+           prose-h2:text-xl
+           prose-h3:text-lg
+           prose-p:text-white
+           prose-strong:text-purple-300
+           prose-em:text-purple-200
+           prose-a:text-purple-300
+           prose-blockquote:text-gray-300
+           prose-blockquote:border-purple-400
+           prose-ul:text-white
+           prose-ol:text-white
+           prose-li:text-white
+           [&_code]:text-purple-500
+           [&_code]:bg-black
+           [&_code]:px-1
+           [&_code]:py-0.5
+           [&_code]:rounded-sm
+           [&_code]:font-normal
+           [&_code]:cursor-pointer
+           [&_code]:transition-colors
+           [&_code:hover]:text-purple-400;
   }
 }
