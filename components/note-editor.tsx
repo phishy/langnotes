@@ -29,6 +29,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   const [isSaving, setIsSaving] = useState(false)
   const [isQuizOpen, setIsQuizOpen] = useState(false)
   const [questions, setQuestions] = useState([])
+  const [realtimeChannel, setRealtimeChannel] = useState(null)
   const {
     setContent: setStoreContent,
     loadContent: loadStoreContent,
@@ -94,12 +95,43 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   useEffect(() => {
     if (noteId) {
       loadNote()
+      subscribeToChanges()
+      return () => {
+        if (realtimeChannel) {
+          supabase.removeChannel(realtimeChannel)
+        }
+      }
     } else {
       setTitle('')
       setContent('')
       setIsEditing(false)
     }
-  }, [noteId])
+  }, [noteId, supabase])
+
+  const subscribeToChanges = () => {
+    if (!noteId) return
+
+    const channel = supabase
+      .channel(`note-${noteId}`)
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `id=eq.${noteId}`
+        },
+        (payload) => {
+          // Only update if the change came from a different client
+          if (payload.new.content !== content) {
+            setContent(payload.new.content)
+            loadStoreContent(noteId, payload.new.content)
+          }
+        }
+      )
+      .subscribe()
+
+    setRealtimeChannel(channel)
+  }
 
   const loadNote = async () => {
     if (!noteId) return
@@ -176,6 +208,26 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     }
   }, [])
 
+  const highlightForTranslation = useCallback((selectedText: string) => {
+    const selection = window.getSelection()
+    if (!selection || !selection.toString().trim()) return
+
+    const range = selection.getRangeAt(0)
+    const start = range.startOffset
+    const end = range.endOffset
+
+    // Get the full content and insert backticks around the selected text
+    const newContent = content.slice(0, start) +
+      '`' + selectedText + '`' +
+      content.slice(end)
+
+    // Update content state and store
+    setContent(newContent)
+    setStoreContent(noteId, newContent)
+    
+    // Save to Supabase
+    saveNoteContent(newContent)
+  }, [content, noteId, setStoreContent])
   const renderMarkdown = useCallback((text: string) => {
     return text.replace(/`([^`]+)`/g, (_, phrase) => {
       return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
@@ -273,15 +325,10 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
           <ContextMenuContent>
             <ContextMenuItem
               onClick={() => {
-                const selection = window.getSelection()
-                if (selection && selection.toString().trim()) {
-                  const selectedText = selection.toString()
-                  const newContent = content.slice(0, selection.anchorOffset) +
-                    '`' + selectedText + '`' +
-                    content.slice(selection.focusOffset)
-                  setContent(newContent)
-                  saveNote()
-                }
+                const selectedText = window.getSelection()?.toString() || ''
+                if (selectedText.trim()) {
+                  highlightForTranslation(selectedText)
+                } 
               }}
             >
               Highlight for Translation
