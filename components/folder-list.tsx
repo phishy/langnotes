@@ -29,7 +29,7 @@ export function FolderList({ selectedFolder, onSelectFolder }: FolderListProps) 
     const { data, error } = await supabase
       .from('folders')
       .select('*')
-      .order('created_at', { ascending: true })
+      .order('name', { ascending: true })
 
     if (error) {
       console.error('Error fetching folders:', error)

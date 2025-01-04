@@ -6,9 +6,9 @@ export default async function AppPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/sign-in');
-  }
+  // if (!user) {
+  //   redirect('/sign-in');
+  // }
 
   return <LanguageLearningApp />;
 }

@@ -3,12 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
 import { FileText, Plus, Trash2 } from 'lucide-react'
+import { DeleteConfirmation } from './delete-confirmation'
 import { createClient } from '@/utils/supabase/client'
 
 interface NoteListProps {
   folderId: string | null
   selectedNote: string | null
   onSelectNote: (noteId: string) => void
+  onStartEditing?: () => void
 }
 
 interface Note {
@@ -18,8 +20,9 @@ interface Note {
   folder_id: string
 }
 
-export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps) {
+export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing }: NoteListProps) {
   const [notes, setNotes] = useState<Note[]>([])
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
       .from('notes')
       .select('*')
       .eq('folder_id', folderId)
-      .order('created_at', { ascending: false })
+      .order('title', { ascending: true })
 
     if (error) {
       console.error('Error fetching notes:', error)
@@ -87,27 +90,33 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
     if (data) {
       setNotes([data, ...notes])
       onSelectNote(data.id)
+      onStartEditing?.()
     }
   }
 
-  const handleDeleteNote = async (noteId: string, e: React.MouseEvent) => {
+  const handleDeleteClick = (noteId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Are you sure you want to delete this note?')) return
+    setNoteToDelete(noteId)
+  }
 
+  const handleConfirmDelete = async () => {
+    if (!noteToDelete) return
+    
     const { error } = await supabase
       .from('notes')
       .delete()
-      .eq('id', noteId)
+      .eq('id', noteToDelete)
 
     if (error) {
       console.error('Error deleting note:', error)
       return
     }
 
-    setNotes(notes.filter(note => note.id !== noteId))
-    if (selectedNote === noteId) {
+    setNotes(notes.filter(note => note.id !== noteToDelete))
+    if (selectedNote === noteToDelete) {
       onSelectNote(notes[0]?.id || null)
     }
+    setNoteToDelete(null)
   }
 
   return (
@@ -134,7 +143,7 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
             variant="ghost"
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={(e) => handleDeleteNote(note.id, e)}
+            onClick={(e) => handleDeleteClick(note.id, e)}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -144,6 +153,13 @@ export function NoteList({ folderId, selectedNote, onSelectNote }: NoteListProps
         <Plus className="mr-2 h-4 w-4" />
         New Note
       </Button>
+      <DeleteConfirmation
+        isOpen={noteToDelete !== null}
+        onClose={() => setNoteToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Note"
+        description="Are you sure you want to delete this note? This action cannot be undone."
+      />
     </div>
   )
 }

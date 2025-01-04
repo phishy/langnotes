@@ -13,9 +13,14 @@ export function LanguageLearningApp() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
   const [selectedNote, setSelectedNote] = useState<string | null>(null)
   const [noteVersion, setNoteVersion] = useState(0)
+  const [isEditing, setIsEditing] = useState(false)
 
   const handleNoteUpdated = () => {
     setNoteVersion(v => v + 1)
+  }
+
+  const handleStartEditing = () => {
+    setIsEditing(true)
   }
 
   return (
@@ -59,13 +64,19 @@ export function LanguageLearningApp() {
             folderId={selectedFolder}
             selectedNote={selectedNote}
             onSelectNote={setSelectedNote}
+            onStartEditing={handleStartEditing}
           />
         </div>
       </div>
 
       {/* Note Editor Column */}
       <div className="border-r">
-        <NoteEditor noteId={selectedNote} key={`${selectedNote}-${noteVersion}`} />
+        <NoteEditor 
+          noteId={selectedNote} 
+          key={`${selectedNote}-${noteVersion}`}
+          defaultIsEditing={isEditing}
+          onEditingChange={setIsEditing}
+        />
       </div>
 
       {/* AI Chat Column */}

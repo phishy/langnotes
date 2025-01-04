@@ -1,0 +1,164 @@
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { createClient } from '@/utils/supabase/client'
+
+interface HistoryState {
+  past: string[]
+  present: string
+  future: string[]
+}
+
+interface NoteHistories {
+  [noteId: string]: HistoryState
+}
+
+interface NoteState {
+  histories: NoteHistories
+  currentNoteId: string | null
+  canUndo: boolean
+  canRedo: boolean
+  loadContent: (noteId: string, content: string) => void
+  setContent: (noteId: string, content: string) => void
+  undo: () => void
+  redo: () => void
+  getCurrentContent: () => string
+}
+
+export const useNoteStore = create<NoteState>()(
+  persist(
+    (set, get) => ({
+      histories: {},
+      currentNoteId: null,
+      canUndo: false,
+      canRedo: false,
+      
+      saveToSupabase: async (noteId: string, content: string) => {
+        const supabase = createClient()
+        const { error } = await supabase
+          .from('notes')
+          .update({ content })
+          .eq('id', noteId)
+
+        if (error) {
+          console.error('Error saving note to Supabase:', error)
+        }
+      },
+
+      loadContent: (noteId, content) => {
+        const state = get()
+        // Only initialize if the note doesn't exist or content has changed
+        if (state.histories[noteId]?.present === content) {
+          set({ currentNoteId: noteId })
+          return
+        }
+
+        set((state) => ({
+          histories: {
+            ...state.histories,
+            [noteId]: {
+              past: [],
+              present: content,
+              future: []
+            }
+          },
+          currentNoteId: noteId,
+          canUndo: state.histories[noteId]?.past.length > 0 || false,
+          canRedo: state.histories[noteId]?.future.length > 0 || false
+        }))
+      },
+
+      setContent: (noteId, content) => {
+        const state = get()
+        const history = state.histories[noteId]
+        if (!history || content === history.present) return
+
+        set((state) => ({
+          histories: {
+            ...state.histories,
+            [noteId]: {
+              past: [...history.past, history.present],
+              present: content,
+              future: []
+            }
+          },
+          canUndo: true,
+          canRedo: false
+        }))
+        
+        // Save to Supabase after state update
+        get().saveToSupabase(noteId, content)
+      },
+
+      undo: () => {
+        const state = get()
+        const noteId = state.currentNoteId
+        if (!noteId) return
+
+        const history = state.histories[noteId]
+        if (!history || history.past.length === 0) return
+
+        const previous = history.past[history.past.length - 1]
+        const newPast = history.past.slice(0, history.past.length - 1)
+
+        set((state) => ({
+          histories: {
+            ...state.histories,
+            [noteId]: {
+              past: newPast,
+              present: previous,
+              future: [history.present, ...history.future]
+            }
+          },
+          canUndo: newPast.length > 0,
+          canRedo: true
+        }))
+        
+        // Save to Supabase after undo
+        get().saveToSupabase(noteId, previous)
+      },
+
+      redo: () => {
+        const state = get()
+        const noteId = state.currentNoteId
+        if (!noteId) return
+
+        const history = state.histories[noteId]
+        if (!history || history.future.length === 0) return
+
+        const next = history.future[0]
+        const newFuture = history.future.slice(1)
+
+        set((state) => ({
+          histories: {
+            ...state.histories,
+            [noteId]: {
+              past: [...history.past, history.present],
+              present: next,
+              future: newFuture
+            }
+          },
+          canUndo: true,
+          canRedo: newFuture.length > 0
+        }))
+        
+        // Save to Supabase after redo
+        get().saveToSupabase(noteId, next)
+      },
+
+      getCurrentContent: () => {
+        const state = get()
+        const noteId = state.currentNoteId
+        if (!noteId) return ''
+        return state.histories[noteId]?.present || ''
+      }
+    }),
+    {
+      name: 'note-history',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        histories: state.histories,
+        currentNoteId: state.currentNoteId
+      })
+    }
+  )
+)
