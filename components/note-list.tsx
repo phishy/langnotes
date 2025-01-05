@@ -2,9 +2,27 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { FileText, Plus, Trash2 } from 'lucide-react'
+import { FileText, Plus, Trash2, Search, GripVertical } from 'lucide-react'
 import { DeleteConfirmation } from './delete-confirmation'
 import { createClient } from '@/utils/supabase/client'
+import { Input } from './ui/input'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface NoteListProps {
   folderId: string | null
@@ -17,13 +35,81 @@ interface Note {
   id: string
   title: string
   content: string
-  folder_id: string
+  position: number
+}
+
+interface SortableNoteProps {
+  note: Note
+  selectedNote: string | null
+  onSelectNote: (noteId: string) => void
+  onDelete: (noteId: string, e: React.MouseEvent) => void
+}
+
+function SortableNote({ note, selectedNote, onSelectNote, onDelete }: SortableNoteProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: note.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2"
+    >
+      <div
+        {...attributes}
+        {...listeners}
+        className="cursor-grab hover:text-purple-400 p-2"
+      >
+        <GripVertical className="h-4 w-4" />
+      </div>
+      <Button
+        variant={selectedNote === note.id ? 'secondary' : 'ghost'}
+        className="flex-1 justify-start flex-col items-start"
+        onClick={() => onSelectNote(note.id)}
+      >
+        <div className="flex items-center w-full">
+          <FileText className="mr-2 h-4 w-4" />
+          {note.title}
+        </div>
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={(e) => onDelete(note.id, e)}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  )
 }
 
 export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing }: NoteListProps) {
   const [notes, setNotes] = useState<Note[]>([])
+  const [filteredNotes, setFilteredNotes] = useState<Note[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null)
   const supabase = createClient()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     if (folderId) {
@@ -51,13 +137,24 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
     }
   }, [folderId, supabase])
 
+  useEffect(() => {
+    if (searchQuery.trim() === '') {
+      setFilteredNotes(notes)
+    } else {
+      const query = searchQuery.toLowerCase()
+      setFilteredNotes(notes.filter(note =>
+        note.title.toLowerCase().includes(query)
+      ))
+    }
+  }, [searchQuery, notes])
+
   const fetchNotes = async () => {
     if (!folderId) return
     const { data, error } = await supabase
       .from('notes')
       .select('*')
       .eq('folder_id', folderId)
-      .order('title', { ascending: true })
+      .order('position', { ascending: true })
 
     if (error) {
       console.error('Error fetching notes:', error)
@@ -70,13 +167,17 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
   const handleNewNote = async () => {
     if (!folderId) return
 
+    // Get the highest position
+    const maxPosition = notes.reduce((max, note) => Math.max(max, note.position || 0), 0)
+
     const { data, error } = await supabase
       .from('notes')
       .insert([
         {
           title: 'New Note',
           content: '',
-          folder_id: folderId
+          folder_id: folderId,
+          position: maxPosition + 1
         }
       ])
       .select()
@@ -120,37 +221,65 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
     setNoteToDelete(null)
   }
 
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = notes.findIndex(note => note.id === active.id)
+    const newIndex = notes.findIndex(note => note.id === over.id)
+
+    const newNotes = arrayMove(notes, oldIndex, newIndex)
+    setNotes(newNotes)
+
+    // Update positions in Supabase
+    const updates = newNotes.map((note, index) => ({
+      id: note.id,
+      position: index
+    }))
+
+    const { error } = await supabase
+      .from('notes')
+      .upsert(updates, { onConflict: 'id' })
+
+    if (error) {
+      console.error('Error updating note positions:', error)
+      // Revert the state if there was an error
+      setNotes(notes)
+    }
+  }
+
   return (
     <div className="space-y-2 p-4">
-      {notes.map((note) => (
-        <div
-          key={note.id}
-          className="flex items-center gap-2"
+      <div className="relative mb-4">
+        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search notes..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={filteredNotes}
+          strategy={verticalListSortingStrategy}
         >
-          <Button
-            variant={selectedNote === note.id ? 'secondary' : 'ghost'}
-            className="flex-1 justify-start flex-col items-start"
-            onClick={() => onSelectNote(note.id)}
-          >
-            <div className="flex items-center w-full">
-              <FileText className="mr-2 h-4 w-4" />
-              {note.title}
-            </div>
-            {/* <p className="text-xs text-muted-foreground truncate w-full text-left pl-6">
-              {note.content || 'Empty note...'}
-            </p> */}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={(e) => handleDeleteClick(note.id, e)}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ))}
-      <Button variant="ghost" className="w-full justify-start" onClick={handleNewNote} disabled={!folderId}>
+          {filteredNotes.map((note) => (
+            <SortableNote
+              key={note.id}
+              note={note}
+              selectedNote={selectedNote}
+              onSelectNote={onSelectNote}
+              onDelete={handleDeleteClick}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      <Button variant="ghost" className="w-full justify-start" onClick={handleNewNote}>
         <Plus className="mr-2 h-4 w-4" />
         New Note
       </Button>

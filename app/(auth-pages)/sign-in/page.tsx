@@ -42,6 +42,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
                 name="email"
                 placeholder="you@example.com"
                 required
+                tabIndex={1}
                 className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
               />
 
@@ -50,6 +51,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
                 <Link
                   className="text-xs text-purple-400 hover:text-purple-300 underline"
                   href="/forgot-password"
+                  tabIndex={3}
                 >
                   Forgot Password?
                 </Link>
@@ -60,12 +62,14 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
                 name="password"
                 placeholder="Your password"
                 required
+                tabIndex={2}
                 className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
               />
 
               <SubmitButton
                 pendingText="Signing In..."
                 formAction={signInAction}
+                tabIndex={4}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
               >
                 Sign in

@@ -20,18 +20,18 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
 
   const addToNote = useCallback(async (content: string) => {
     if (!noteId) return
-    
+
     // First get the current note content
     const { data: note } = await supabase
       .from('notes')
       .select('content')
       .eq('id', noteId)
       .single()
-    
+
     if (!note) return
 
     // Append the new content to the existing content
-    const updatedContent = note.content 
+    const updatedContent = note.content
       ? `${note.content}\n\n${content}`
       : content
 
@@ -45,7 +45,7 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
       console.error('Error updating note:', error)
       return
     }
-    
+
     // Trigger note refresh in the editor
     onNoteUpdated?.()
   }, [noteId, onNoteUpdated, supabase])
@@ -55,7 +55,7 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
       <div className="p-4 border-b">
         <h2 className="font-semibold">AI Assistant</h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 prose prose-sm max-w-none bg-black">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 prose prose-sm max-w-none bg-black min-h-0">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -87,13 +87,15 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
           </div>
         ))}
       </div>
-      <form onSubmit={handleSubmit} className="p-4 border-t flex gap-2">
-        <Input
-          value={input}
-          onChange={handleInputChange}
-          placeholder="Ask about language learning..."
-        />
-        <Button type="submit">Send</Button>
+      <form onSubmit={handleSubmit} className="p-4 border-t mt-auto">
+        <div className="flex gap-2">
+          <Input
+            value={input}
+            onChange={handleInputChange}
+            placeholder="Ask about language learning..."
+          />
+          <Button type="submit">Send</Button>
+        </div>
       </form>
     </div>
   )

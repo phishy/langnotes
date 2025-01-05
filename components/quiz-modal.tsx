@@ -3,18 +3,23 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
+import { Loader2 } from 'lucide-react'
 import type { QuizQuestion } from '@/lib/schemas/quiz'
+import ReactMarkdown from 'react-markdown'
 
 interface QuizModalProps {
   isOpen: boolean
   onClose: () => void
   questions: QuizQuestion[]
+  content: string
 }
 
-export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
+export function QuizModal({ isOpen, onClose, questions, content }: QuizModalProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null)
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null)
+  const [explanation, setExplanation] = useState<string | null>(null)
+  const [isLoadingExplanation, setIsLoadingExplanation] = useState(false)
 
   const handleAnswer = (answer: string) => {
     setSelectedAnswer(answer)
@@ -26,11 +31,39 @@ export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
       setCurrentQuestion(currentQuestion + 1)
       setSelectedAnswer(null)
       setIsCorrect(null)
+      setExplanation(null)
     } else {
       onClose()
       setCurrentQuestion(0)
       setSelectedAnswer(null)
       setIsCorrect(null)
+      setExplanation(null)
+    }
+  }
+
+  const handleExplanation = async () => {
+    try {
+      setIsLoadingExplanation(true)
+      const response = await fetch('/api/quiz/explain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: questions[currentQuestion].question,
+          answer: questions[currentQuestion].answer,
+          content
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to get explanation')
+      }
+
+      const data = await response.json()
+      setExplanation(data.explanation)
+    } catch (error) {
+      console.error('Error getting explanation:', error)
+    } finally {
+      setIsLoadingExplanation(false)
     }
   }
 
@@ -49,7 +82,7 @@ export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
               <Button
                 key={option}
                 variant={selectedAnswer === option
-                  ? isCorrect
+                  ? option === questions[currentQuestion].answer
                     ? "default"
                     : "destructive"
                   : "outline"}
@@ -62,10 +95,33 @@ export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
             ))}
           </div>
           {selectedAnswer && (
-            <div className="mt-4">
+            <div className="mt-4 space-y-2">
               <p className={`text-sm ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
                 {isCorrect ? 'Correct!' : 'Incorrect. The correct answer is: ' + questions[currentQuestion].answer}
               </p>
+              {!explanation && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleExplanation}
+                  disabled={isLoadingExplanation}
+                  className="text-purple-400 hover:text-purple-300"
+                >
+                  {isLoadingExplanation ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    'Why?'
+                  )}
+                </Button>
+              )}
+              {explanation && (
+                <div className="text-sm mt-2 p-3 bg-muted rounded-md prose prose-sm max-w-none prose-invert">
+                  <ReactMarkdown>{explanation}</ReactMarkdown>
+                </div>
+              )}
               <Button
                 className="mt-2"
                 onClick={handleNext}

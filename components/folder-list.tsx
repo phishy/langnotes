@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { Folder, Plus, Pencil, Check } from 'lucide-react'
+import { Folder, Plus, Pencil, Check, MoreVertical, Trash2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { DeleteConfirmation } from './delete-confirmation'
 
 interface FolderListProps {
   selectedFolder: string | null
@@ -19,6 +26,7 @@ export function FolderList({ selectedFolder, onSelectFolder }: FolderListProps) 
   const [folders, setFolders] = useState<FolderType[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -81,13 +89,36 @@ export function FolderList({ selectedFolder, onSelectFolder }: FolderListProps) 
       return
     }
 
-    setFolders(folders.map(folder => 
-      folder.id === editingId 
+    setFolders(folders.map(folder =>
+      folder.id === editingId
         ? { ...folder, name: editingName.trim() }
         : folder
     ))
     setEditingId(null)
     setEditingName('')
+  }
+
+  const handleDeleteFolder = async () => {
+    if (!folderToDelete) return
+
+    const { error } = await supabase
+      .from('folders')
+      .delete()
+      .eq('id', folderToDelete)
+
+    if (error) {
+      console.error('Error deleting folder:', error)
+      return
+    }
+
+    setFolders(folders.filter(folder => folder.id !== folderToDelete))
+    if (selectedFolder === folderToDelete) {
+      const nextFolder = folders.find(folder => folder.id !== folderToDelete)
+      if (nextFolder) {
+        onSelectFolder(nextFolder.id)
+      }
+    }
+    setFolderToDelete(null)
   }
 
   return (
@@ -123,30 +154,54 @@ export function FolderList({ selectedFolder, onSelectFolder }: FolderListProps) 
               folder.name
             )}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => {
-              if (editingId === folder.id) {
-                handleSaveEdit()
-              } else {
-                handleEditFolder(folder.id)
-              }
-            }}
-          >
-            {editingId === folder.id ? (
+          {editingId === folder.id ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleSaveEdit}
+            >
               <Check className="h-4 w-4" />
-            ) : (
-              <Pencil className="h-4 w-4" />
-            )}
-          </Button>
+            </Button>
+          ) : (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleEditFolder(folder.id)}>
+                  <Pencil className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setFolderToDelete(folder.id)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       ))}
       <Button variant="ghost" className="w-full justify-start" onClick={handleNewFolder}>
         <Plus className="mr-2 h-4 w-4" />
         New Folder
       </Button>
+      <DeleteConfirmation
+        isOpen={folderToDelete !== null}
+        onClose={() => setFolderToDelete(null)}
+        onConfirm={handleDeleteFolder}
+        title="Delete Folder"
+        description="Are you sure you want to delete this folder? All notes in this folder will also be deleted. This action cannot be undone."
+      />
     </div>
   )
 }

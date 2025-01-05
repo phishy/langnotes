@@ -331,20 +331,6 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
                 <Redo2 className="h-4 w-4" />
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-purple-400 hover:text-purple-300"
-              onClick={handleQuiz}
-              disabled={isGeneratingQuiz}
-            >
-              {isGeneratingQuiz ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4 mr-2" />
-              )}
-              Quiz Me
-            </Button>
           </div>
         )}
         <Button
@@ -356,6 +342,26 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
           {isEditing ? <Save className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
         </Button>
       </div>
+
+      {!isEditing && (
+        <div className="border-b px-4 py-2 flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={handleQuiz}
+            disabled={isGeneratingQuiz}
+          >
+            {isGeneratingQuiz ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4 mr-2" />
+            )}
+            Quiz Me
+          </Button>
+        </div>
+      )}
+
       <div className="flex-1 p-4 overflow-y-auto">
         {isEditing ? (
           <textarea
@@ -364,38 +370,39 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
             onChange={(e) => handleContentChange(e.target.value)}
           />
         ) : (
-        <ContextMenu>
-          <ContextMenuTrigger>
-            <div
-              className="prose prose-sm max-w-none prose-invert ai-markdown"
-              onClick={(e) => {
-                const target = e.target as HTMLElement
-                if (target.tagName === 'CODE') {
-                  handlePhraseClick(target.textContent || '')
-                }
-              }}
-            >
-              <ReactMarkdown>{content}</ReactMarkdown>
-            </div>
-          </ContextMenuTrigger>
-          <ContextMenuContent>
-            <ContextMenuItem
-              onClick={() => {
-                const selectedText = window.getSelection()?.toString() || ''
-                if (selectedText.trim()) {
-                  highlightForTranslation(selectedText)
-                }
-              }}
-            >
-              Highlight for Translation
-            </ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
+          <ContextMenu>
+            <ContextMenuTrigger>
+              <div
+                className="prose prose-sm max-w-none prose-invert ai-markdown"
+                onClick={(e) => {
+                  const target = e.target as HTMLElement
+                  if (target.tagName === 'CODE') {
+                    handlePhraseClick(target.textContent || '')
+                  }
+                }}
+              >
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem
+                onClick={() => {
+                  const selectedText = window.getSelection()?.toString() || ''
+                  if (selectedText.trim()) {
+                    highlightForTranslation(selectedText)
+                  }
+                }}
+              >
+                Highlight for Translation
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
         )}
         <QuizModal
           isOpen={isQuizOpen}
           onClose={() => setIsQuizOpen(false)}
           questions={questions}
+          content={content}
         />
       </div>
     </div>
