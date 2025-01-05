@@ -17,10 +17,10 @@ export function Hero() {
         real-time translations, and AI-powered conversation practice.
       </p>
       <div className="relative flex gap-4 justify-center">
-        <Button asChild size="lg">
+        <Button asChild size="lg" className="bg-purple-600 hover:bg-purple-500 text-white">
           <Link href="/sign-up">Start Learning for Free</Link>
         </Button>
-        <Button asChild size="lg" variant="outline">
+        <Button asChild size="lg" variant="outline" className="border-purple-600 text-purple-600 hover:bg-purple-600/10">
           <Link href="#features">Learn More</Link>
         </Button>
       </div>

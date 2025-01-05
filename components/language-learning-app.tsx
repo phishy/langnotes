@@ -19,7 +19,8 @@ export function LanguageLearningApp() {
   const [showFolders, setShowFolders] = useState(true)
   const [noteVersion, setNoteVersion] = useState(0)
   const [isEditing, setIsEditing] = useState(false)
-  const [activeView, setActiveView] = useState<'folders' | 'notes' | 'editor' | 'chat'>('editor')
+  const [activeView, setActiveView] = useState<'folders' | 'notes' | 'editor' | 'chat'>('folders')
+  const [isMobile, setIsMobile] = useState(false)
 
   const params = useParams()
   const router = useRouter()
@@ -27,16 +28,51 @@ export function LanguageLearningApp() {
   const selectedFolder = params?.folderId as string
   const selectedNote = params?.noteId as string
 
+  // Set initial view based on route
+  useEffect(() => {
+    if (isMobile) {
+      if (selectedNote && selectedNote !== '_') {
+        setActiveView('editor')
+      } else if (selectedFolder && selectedFolder !== '_') {
+        setActiveView('notes')
+      } else {
+        setActiveView('folders')
+      }
+    }
+  }, [isMobile, selectedFolder, selectedNote])
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+
+    // Initial check
+    checkMobile()
+
+    // Add event listener for window resize
+    window.addEventListener('resize', checkMobile)
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
+  // Update active view when a note is selected in mobile mode
+  useEffect(() => {
+    if (isMobile && selectedNote && selectedNote !== '_') {
+      setActiveView('editor')
+    }
+  }, [isMobile, selectedNote])
+
   const handleSelectFolder = (folderId: string) => {
     router.push(`/protected/app/${folderId}`)
-    if (isMobileView()) {
+    if (isMobile) {
       setActiveView('notes')
     }
   }
 
   const handleSelectNote = (noteId: string | null) => {
     router.push(`/protected/app/${selectedFolder}/${noteId || '_'}`)
-    if (isMobileView()) {
+    if (isMobile) {
       setActiveView('editor')
     }
   }
@@ -47,10 +83,6 @@ export function LanguageLearningApp() {
 
   const handleStartEditing = () => {
     setIsEditing(true)
-  }
-
-  const isMobileView = () => {
-    return typeof window !== 'undefined' && window.innerWidth < 768
   }
 
   const ResizeHandle = () => {
@@ -67,7 +99,7 @@ export function LanguageLearningApp() {
       <div className="flex-1 min-h-0">
         <PanelGroup direction="horizontal" className="h-full">
           {/* Folders Column */}
-          {(!isMobileView() && showFolders) || (isMobileView() && activeView === 'folders') ? (
+          {(!isMobile && showFolders) || (isMobile && activeView === 'folders') ? (
             <>
               <Panel defaultSize={15} minSize={10}>
                 <div className="h-full border-r overflow-hidden">
@@ -90,12 +122,12 @@ export function LanguageLearningApp() {
                   </div>
                 </div>
               </Panel>
-              {!isMobileView() && <ResizeHandle />}
+              {!isMobile && <ResizeHandle />}
             </>
           ) : null}
 
           {/* Notes List Column */}
-          {(!isMobileView() || activeView === 'notes') && (
+          {(!isMobile || activeView === 'notes') && (
             <>
               <Panel defaultSize={20} minSize={15}>
                 <div className="h-full border-r overflow-hidden">
@@ -122,12 +154,12 @@ export function LanguageLearningApp() {
                   </div>
                 </div>
               </Panel>
-              {!isMobileView() && <ResizeHandle />}
+              {!isMobile && <ResizeHandle />}
             </>
           )}
 
           {/* Editor Column */}
-          {(!isMobileView() || activeView === 'editor') && (
+          {(!isMobile || activeView === 'editor') && (
             <Panel>
               <div className="h-full overflow-hidden">
                 <div className="h-full overflow-y-auto pb-16 md:pb-0">
@@ -143,9 +175,9 @@ export function LanguageLearningApp() {
           )}
 
           {/* AI Chat Column */}
-          {!isMobileView() && <ResizeHandle />}
+          {!isMobile && <ResizeHandle />}
           <Panel defaultSize={25} minSize={20} className={cn(
-            isMobileView() && activeView !== 'chat' && 'hidden'
+            isMobile && activeView !== 'chat' && 'hidden'
           )}>
             <div className="h-full border-l overflow-hidden">
               <div className="h-full overflow-y-auto pb-16 md:pb-0">
@@ -164,8 +196,8 @@ export function LanguageLearningApp() {
             size="lg"
             onClick={() => setActiveView('folders')}
             className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2",
-              activeView === 'folders' && "text-purple-500"
+              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
+              activeView === 'folders' ? "text-purple-500" : "text-muted-foreground"
             )}
           >
             <Folder className="h-5 w-5" />
@@ -176,8 +208,8 @@ export function LanguageLearningApp() {
             size="lg"
             onClick={() => setActiveView('notes')}
             className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2",
-              activeView === 'notes' && "text-purple-500"
+              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
+              (activeView === 'notes' || activeView === 'editor') ? "text-purple-500" : "text-muted-foreground"
             )}
           >
             <FileText className="h-5 w-5" />
@@ -188,8 +220,8 @@ export function LanguageLearningApp() {
             size="lg"
             onClick={() => setActiveView('chat')}
             className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2",
-              activeView === 'chat' && "text-purple-500"
+              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
+              activeView === 'chat' ? "text-purple-500" : "text-muted-foreground"
             )}
           >
             <Bot className="h-5 w-5" />

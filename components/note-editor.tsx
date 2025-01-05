@@ -245,10 +245,8 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
 
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
-      // Initialize AudioContext on first click if not already initialized
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContext()
-      }
+      // Create AudioContext on click
+      const audioContext = new AudioContext()
 
       const response = await fetch('/api/speech', {
         method: 'POST',
@@ -257,13 +255,18 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
       })
 
       const { audio } = await response.json()
-      const audioBuffer = await audioContextRef.current.decodeAudioData(
+      const audioBuffer = await audioContext.decodeAudioData(
         Buffer.from(audio, 'base64').buffer
       )
-      const source = audioContextRef.current.createBufferSource()
+      const source = audioContext.createBufferSource()
       source.buffer = audioBuffer
-      source.connect(audioContextRef.current.destination)
+      source.connect(audioContext.destination)
       source.start()
+
+      // Clean up after playback
+      source.onended = () => {
+        audioContext.close()
+      }
     } catch (error) {
       console.error('Error playing audio:', error)
     }
