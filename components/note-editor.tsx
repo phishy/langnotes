@@ -41,8 +41,18 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     canRedo,
     getCurrentContent
   } = useNoteStore()
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
   const supabase = createClient()
-  const audioContextRef = useRef<AudioContext | null>(null)
+
+  // Initialize audio context on first user interaction
+  const initializeAudioContext = useCallback(() => {
+    if (!audioContext) {
+      const newContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      setAudioContext(newContext)
+      return newContext
+    }
+    return audioContext
+  }, [audioContext])
 
   const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
@@ -245,32 +255,38 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
 
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
-      // Create AudioContext on click
-      const audioContext = new AudioContext()
+      // Initialize or resume AudioContext on click
+      const ctx = initializeAudioContext()
+
+      // iOS requires resuming the audio context
+      if (ctx.state === 'suspended') {
+        await ctx.resume()
+      }
 
       const response = await fetch('/api/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, language: 'it' }), // Default to Italian
+        body: JSON.stringify({ text: phrase, language: 'it' }),
       })
 
       const { audio } = await response.json()
-      const audioBuffer = await audioContext.decodeAudioData(
+      const audioBuffer = await ctx.decodeAudioData(
         Buffer.from(audio, 'base64').buffer
       )
-      const source = audioContext.createBufferSource()
+
+      const source = ctx.createBufferSource()
       source.buffer = audioBuffer
-      source.connect(audioContext.destination)
+      source.connect(ctx.destination)
       source.start()
 
-      // Clean up after playback
+      // Clean up only the source, not the entire context
       source.onended = () => {
-        audioContext.close()
+        source.disconnect()
       }
     } catch (error) {
       console.error('Error playing audio:', error)
     }
-  }, [])
+  }, [initializeAudioContext])
 
   const highlightForTranslation = useCallback((selectedText: string) => {
     if (!noteId) return
@@ -295,18 +311,19 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   }, [content, noteId, setStoreContent, saveNoteContent])
   const renderMarkdown = useCallback((text: string) => {
     return text.replace(/`([^`]+)`/g, (_, phrase) => {
-      return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
+      // Return a data attribute that we can use to identify clickable phrases
+      return `<span class="cursor-pointer text-primary hover:underline" data-phrase="${phrase}">\`${phrase}\`</span>`
     })
   }, [])
 
+  // Clean up AudioContext on component unmount
   useEffect(() => {
     return () => {
-      // Cleanup AudioContext when component unmounts
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
+      if (audioContext) {
+        audioContext.close()
       }
     }
-  }, [])
+  }, [audioContext])
 
   if (!noteId) {
     return (
@@ -393,13 +410,13 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
                 className="prose prose-sm max-w-none prose-invert ai-markdown"
                 onClick={(e) => {
                   const target = e.target as HTMLElement
-                  if (target.tagName === 'CODE') {
-                    handlePhraseClick(target.textContent || '')
+                  const phrase = target.getAttribute('data-phrase')
+                  if (phrase) {
+                    handlePhraseClick(phrase)
                   }
                 }}
-              >
-                <ReactMarkdown>{content}</ReactMarkdown>
-              </div>
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
+              />
             </ContextMenuTrigger>
             <ContextMenuContent>
               <ContextMenuItem
