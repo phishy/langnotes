@@ -3,17 +3,12 @@
 import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
-
-interface Question {
-  question: string
-  answer: string
-  options: string[]
-}
+import type { QuizQuestion } from '@/lib/schemas/quiz'
 
 interface QuizModalProps {
   isOpen: boolean
   onClose: () => void
-  questions: Question[]
+  questions: QuizQuestion[]
 }
 
 export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
@@ -53,9 +48,9 @@ export function QuizModal({ isOpen, onClose, questions }: QuizModalProps) {
             {questions[currentQuestion].options.map((option) => (
               <Button
                 key={option}
-                variant={selectedAnswer === option 
-                  ? isCorrect 
-                    ? "default" 
+                variant={selectedAnswer === option
+                  ? isCorrect
+                    ? "default"
                     : "destructive"
                   : "outline"}
                 className="w-full justify-start"

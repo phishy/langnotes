@@ -1,10 +1,15 @@
-import { Bot, BookOpen, Mic, Globe } from 'lucide-react';
+import { Bot, BookOpen, Mic, Globe, Brain } from 'lucide-react';
 
 const features = [
   {
     icon: BookOpen,
     title: 'Smart Note Organization',
     description: 'Organize your language learning notes with folders and smart categorization.'
+  },
+  {
+    icon: Brain,
+    title: 'Instant Quizzes',
+    description: 'Generate AI-powered quizzes from your notes to test your knowledge and reinforce learning.'
   },
   {
     icon: Bot,
@@ -32,7 +37,7 @@ export function Features() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature) => (
-            <div key={feature.title} className="p-6 rounded-lg bg-background border">
+            <div key={feature.title} className="p-6 rounded-lg bg-background border flex flex-col items-center text-center">
               <feature.icon className="w-12 h-12 text-purple-400 mb-4" />
               <h3 className="text-xl font-semibold mb-2 text-purple-600">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.description}</p>

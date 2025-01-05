@@ -25,8 +25,10 @@ export default async function Signup(props: { searchParams: Promise<Message> }) 
         {/* First Column - Brand and Description (hidden on mobile) */}
         <div className="hidden md:flex md:w-1/2 p-8 flex-col justify-center">
           <div className="max-w-md">
-            <h1 className="text-4xl font-bold text-purple-500 mb-6">LangNotes</h1>
-            <p className="text-gray-300 text-lg leading-relaxed">
+            <Link href="/" className="text-4xl font-bold text-purple-500 hover:text-purple-400 transition-colors">
+              LangNotes
+            </Link>
+            <p className="text-gray-300 text-lg leading-relaxed mt-6">
               Join our community of language learners. Get started with AI-powered
               note-taking, progress tracking, and personalized learning paths designed
               to help you achieve fluency faster.

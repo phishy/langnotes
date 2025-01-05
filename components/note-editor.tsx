@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from './ui/button'
-import { Pencil, Save, Sparkles, Undo2, Redo2 } from 'lucide-react'
+import { Pencil, Save, Sparkles, Undo2, Redo2, Loader2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from './ui/context-menu'
 import { QuizModal } from './quiz-modal'
 import { debounce } from '@/lib/utils'
 import { useNoteStore } from '@/lib/stores/note-store'
+import type { QuizQuestion } from '@/lib/schemas/quiz'
 
 interface NoteEditorProps {
   noteId: string | null
@@ -28,36 +29,23 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   const [content, setContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isQuizOpen, setIsQuizOpen] = useState(false)
-  const [questions, setQuestions] = useState([])
-  const [realtimeChannel, setRealtimeChannel] = useState(null)
+  const [questions, setQuestions] = useState<QuizQuestion[]>([])
+  const [realtimeChannel, setRealtimeChannel] = useState<any>(null)
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
   const {
     setContent: setStoreContent,
     loadContent: loadStoreContent,
-    undo: undoStore, 
-    redo: redoStore, 
-    canUndo, 
-    canRedo, 
+    undo: undoStore,
+    redo: redoStore,
+    canUndo,
+    canRedo,
     getCurrentContent
   } = useNoteStore()
   const supabase = createClient()
 
-  const handleUndo = async () => {
-    undoStore()
-    const newContent = getCurrentContent()
-    setContent(newContent)
-    await saveNoteContent(newContent)
-  }
-
-  const handleRedo = async () => {
-    redoStore()
-    const newContent = getCurrentContent()
-    setContent(newContent)
-    await saveNoteContent(newContent)
-  }
-
-  const saveNoteContent = async (content: string) => {
+  const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
-    
+
     const { error } = await supabase
       .from('notes')
       .update({ content })
@@ -66,74 +54,50 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     if (error) {
       console.error('Error saving note content:', error)
     }
-  }
-
-  const handleQuiz = async () => {
-    try {
-      const response = await fetch('/api/quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
-      })
-      
-      const questions = await response.json()
-      setQuestions(questions)
-      setIsQuizOpen(true)
-    } catch (error) {
-      console.error('Error generating quiz:', error)
-    }
-  }
-
-  useEffect(() => {
-    setIsEditing(defaultIsEditing)
-  }, [defaultIsEditing])
-
-  useEffect(() => {
-    onEditingChange?.(isEditing)
-  }, [isEditing, onEditingChange])
-
-  useEffect(() => {
-    if (noteId) {
-      loadNote()
-      subscribeToChanges()
-      return () => {
-        if (realtimeChannel) {
-          supabase.removeChannel(realtimeChannel)
-        }
-      }
-    } else {
-      setTitle('')
-      setContent('')
-      setIsEditing(false)
-    }
   }, [noteId, supabase])
 
-  const subscribeToChanges = () => {
-    if (!noteId) return
+  // Use ref to store the timeout ID
+  const saveTimeoutRef = useRef<NodeJS.Timeout>()
+  const storeTimeoutRef = useRef<NodeJS.Timeout>()
 
-    const channel = supabase
-      .channel(`note-${noteId}`)
-      .on('postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notes',
-          filter: `id=eq.${noteId}`
-        },
-        (payload) => {
-          // Only update if the change came from a different client
-          if (payload.new.content !== content) {
-            setContent(payload.new.content)
-            loadStoreContent(noteId, payload.new.content)
-          }
-        }
-      )
-      .subscribe()
+  const handleContentChange = useCallback((newContent: string) => {
+    setContent(newContent)
+    if (noteId) {
+      // Clear previous store timeout if it exists
+      if (storeTimeoutRef.current) {
+        clearTimeout(storeTimeoutRef.current)
+      }
 
-    setRealtimeChannel(channel)
-  }
+      // Update store after a short delay to avoid interrupting typing
+      storeTimeoutRef.current = setTimeout(() => {
+        setStoreContent(noteId, newContent)
+      }, 300)
 
-  const loadNote = async () => {
+      // Clear previous save timeout if it exists
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+
+      // Save to Supabase after a longer delay
+      saveTimeoutRef.current = setTimeout(() => {
+        saveNoteContent(newContent)
+      }, 1000)
+    }
+  }, [noteId, setStoreContent, saveNoteContent])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current)
+      }
+      if (storeTimeoutRef.current) {
+        clearTimeout(storeTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const loadNote = useCallback(async () => {
     if (!noteId) return
     const { data, error } = await supabase
       .from('notes')
@@ -148,10 +112,102 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
 
     if (data) {
       setTitle(data.title)
-      setContent(data.content || '')
-      loadStoreContent(noteId, data.content || '')
+      const initialContent = data.content || ''
+      setContent(initialContent)
+      // Initialize the history state with the initial content
+      loadStoreContent(noteId, initialContent)
+    }
+  }, [noteId, supabase, loadStoreContent])
+
+  const subscribeToChanges = useCallback(() => {
+    if (!noteId) return
+
+    const channel = supabase
+      .channel(`note-${noteId}`)
+      .on('postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notes',
+          filter: `id=eq.${noteId}`
+        },
+        (payload) => {
+          // Only update if the change came from a different client and content is different
+          const newContent = payload.new.content || ''
+          if (newContent !== content) {
+            setContent(newContent)
+            loadStoreContent(noteId, newContent)
+          }
+        }
+      )
+      .subscribe()
+
+    setRealtimeChannel(channel)
+
+    // Return cleanup function
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [noteId, supabase, loadStoreContent]) // Remove content from dependencies
+
+  const handleUndo = useCallback(async () => {
+    undoStore()
+    const newContent = getCurrentContent()
+    setContent(newContent)
+    await saveNoteContent(newContent)
+  }, [undoStore, getCurrentContent, saveNoteContent])
+
+  const handleRedo = useCallback(async () => {
+    redoStore()
+    const newContent = getCurrentContent()
+    setContent(newContent)
+    await saveNoteContent(newContent)
+  }, [redoStore, getCurrentContent, saveNoteContent])
+
+  const handleQuiz = async () => {
+    try {
+      setIsGeneratingQuiz(true)
+      const response = await fetch('/api/quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to generate quiz')
+      }
+
+      const questions = await response.json()
+      setQuestions(questions)
+      setIsQuizOpen(true)
+    } catch (error) {
+      console.error('Error generating quiz:', error)
+    } finally {
+      setIsGeneratingQuiz(false)
     }
   }
+
+  useEffect(() => {
+    setIsEditing(defaultIsEditing)
+  }, [defaultIsEditing])
+
+  useEffect(() => {
+    onEditingChange?.(isEditing)
+  }, [isEditing, onEditingChange])
+
+  useEffect(() => {
+    if (noteId) {
+      loadNote()
+      const cleanup = subscribeToChanges()
+      return () => {
+        cleanup?.()
+      }
+    } else {
+      setTitle('')
+      setContent('')
+      setIsEditing(false)
+    }
+  }, [noteId, loadNote, subscribeToChanges])
 
   const saveNote = async () => {
     if (!noteId) return
@@ -193,7 +249,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: phrase, language: 'it' }), // Default to Italian
       })
-      
+
       const { audio } = await response.json()
       const audioContext = new AudioContext()
       const audioBuffer = await audioContext.decodeAudioData(
@@ -209,6 +265,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   }, [])
 
   const highlightForTranslation = useCallback((selectedText: string) => {
+    if (!noteId) return
     const selection = window.getSelection()
     if (!selection || !selection.toString().trim()) return
 
@@ -224,10 +281,10 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     // Update content state and store
     setContent(newContent)
     setStoreContent(noteId, newContent)
-    
+
     // Save to Supabase
     saveNoteContent(newContent)
-  }, [content, noteId, setStoreContent])
+  }, [content, noteId, setStoreContent, saveNoteContent])
   const renderMarkdown = useCallback((text: string) => {
     return text.replace(/`([^`]+)`/g, (_, phrase) => {
       return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
@@ -279,8 +336,13 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
               size="sm"
               className="text-purple-400 hover:text-purple-300"
               onClick={handleQuiz}
+              disabled={isGeneratingQuiz}
             >
-              <Sparkles className="h-4 w-4 mr-2" />
+              {isGeneratingQuiz ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
               Quiz Me
             </Button>
           </div>
@@ -299,18 +361,12 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
           <textarea
             className="w-full h-full p-2 border rounded-md bg-background"
             value={content}
-            onChange={(e) => {
-              const newContent = e.target.value
-              setContent(newContent)
-              setStoreContent(noteId, newContent)
-              // Debounce save to Supabase
-              debounce(() => saveNoteContent(newContent), 1000)()
-            }}
+            onChange={(e) => handleContentChange(e.target.value)}
           />
         ) : (
         <ContextMenu>
           <ContextMenuTrigger>
-            <div 
+            <div
               className="prose prose-sm max-w-none prose-invert ai-markdown"
               onClick={(e) => {
                 const target = e.target as HTMLElement
@@ -328,7 +384,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
                 const selectedText = window.getSelection()?.toString() || ''
                 if (selectedText.trim()) {
                   highlightForTranslation(selectedText)
-                } 
+                }
               }}
             >
               Highlight for Translation

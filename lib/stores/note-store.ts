@@ -31,7 +31,7 @@ export const useNoteStore = create<NoteState>()(
       currentNoteId: null,
       canUndo: false,
       canRedo: false,
-      
+
       saveToSupabase: async (noteId: string, content: string) => {
         const supabase = createClient()
         const { error } = await supabase
@@ -45,31 +45,38 @@ export const useNoteStore = create<NoteState>()(
       },
 
       loadContent: (noteId, content) => {
-        const state = get()
-        // Only initialize if the note doesn't exist or content has changed
-        if (state.histories[noteId]?.present === content) {
-          set({ currentNoteId: noteId })
-          return
-        }
-
-        set((state) => ({
-          histories: {
-            ...state.histories,
-            [noteId]: {
-              past: [],
-              present: content,
-              future: []
+        set((state) => {
+          // If the note already exists and has the same content, just update the currentNoteId
+          if (state.histories[noteId]?.present === content) {
+            return {
+              currentNoteId: noteId,
+              canUndo: state.histories[noteId]?.past.length > 0,
+              canRedo: state.histories[noteId]?.future.length > 0
             }
-          },
-          currentNoteId: noteId,
-          canUndo: state.histories[noteId]?.past.length > 0 || false,
-          canRedo: state.histories[noteId]?.future.length > 0 || false
-        }))
+          }
+
+          // Otherwise, initialize or reset the history
+          return {
+            histories: {
+              ...state.histories,
+              [noteId]: {
+                past: [],
+                present: content,
+                future: []
+              }
+            },
+            currentNoteId: noteId,
+            canUndo: false,
+            canRedo: false
+          }
+        })
       },
 
       setContent: (noteId, content) => {
         const state = get()
         const history = state.histories[noteId]
+
+        // If no history exists or content hasn't changed, do nothing
         if (!history || content === history.present) return
 
         set((state) => ({
@@ -84,9 +91,6 @@ export const useNoteStore = create<NoteState>()(
           canUndo: true,
           canRedo: false
         }))
-        
-        // Save to Supabase after state update
-        get().saveToSupabase(noteId, content)
       },
 
       undo: () => {
@@ -112,9 +116,6 @@ export const useNoteStore = create<NoteState>()(
           canUndo: newPast.length > 0,
           canRedo: true
         }))
-        
-        // Save to Supabase after undo
-        get().saveToSupabase(noteId, previous)
       },
 
       redo: () => {
@@ -140,9 +141,6 @@ export const useNoteStore = create<NoteState>()(
           canUndo: true,
           canRedo: newFuture.length > 0
         }))
-        
-        // Save to Supabase after redo
-        get().saveToSupabase(noteId, next)
       },
 
       getCurrentContent: () => {

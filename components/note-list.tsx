@@ -9,7 +9,7 @@ import { createClient } from '@/utils/supabase/client'
 interface NoteListProps {
   folderId: string | null
   selectedNote: string | null
-  onSelectNote: (noteId: string) => void
+  onSelectNote: (noteId: string | null) => void
   onStartEditing?: () => void
 }
 
@@ -101,7 +101,7 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
 
   const handleConfirmDelete = async () => {
     if (!noteToDelete) return
-    
+
     const { error } = await supabase
       .from('notes')
       .delete()
@@ -114,7 +114,8 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
 
     setNotes(notes.filter(note => note.id !== noteToDelete))
     if (selectedNote === noteToDelete) {
-      onSelectNote(notes[0]?.id || null)
+      const nextNote = notes.find(note => note.id !== noteToDelete)
+      onSelectNote(nextNote?.id || null)
     }
     setNoteToDelete(null)
   }

@@ -1,4 +1,4 @@
-import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
+import { PollyClient, SynthesizeSpeechCommand, VoiceId } from "@aws-sdk/client-polly";
 import { NextResponse } from "next/server";
 
 const polly = new PollyClient({
@@ -13,14 +13,14 @@ export async function POST(req: Request) {
   const { text, language } = await req.json();
 
   // Map language codes to Polly voices
-  const voiceMap: { [key: string]: string } = {
+  const voiceMap: { [key: string]: VoiceId } = {
     it: "Bianca", // Italian
     es: "Conchita", // Spanish
     fr: "Lea", // French
     de: "Marlene", // German
   };
 
-  const voice = voiceMap[language] || "Joanna";
+  const voice: VoiceId = voiceMap[language] || "Joanna";
 
   try {
     const command = new SynthesizeSpeechCommand({
