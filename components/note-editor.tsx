@@ -42,6 +42,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     getCurrentContent
   } = useNoteStore()
   const supabase = createClient()
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
@@ -244,6 +245,11 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
 
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
+      // Initialize AudioContext on first click if not already initialized
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContext()
+      }
+
       const response = await fetch('/api/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -251,13 +257,12 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
       })
 
       const { audio } = await response.json()
-      const audioContext = new AudioContext()
-      const audioBuffer = await audioContext.decodeAudioData(
+      const audioBuffer = await audioContextRef.current.decodeAudioData(
         Buffer.from(audio, 'base64').buffer
       )
-      const source = audioContext.createBufferSource()
+      const source = audioContextRef.current.createBufferSource()
       source.buffer = audioBuffer
-      source.connect(audioContext.destination)
+      source.connect(audioContextRef.current.destination)
       source.start()
     } catch (error) {
       console.error('Error playing audio:', error)
@@ -289,6 +294,15 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     return text.replace(/`([^`]+)`/g, (_, phrase) => {
       return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
     })
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      // Cleanup AudioContext when component unmounts
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
+      }
+    }
   }, [])
 
   if (!noteId) {
