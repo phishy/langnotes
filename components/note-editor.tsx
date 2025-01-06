@@ -41,18 +41,9 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     canRedo,
     getCurrentContent
   } = useNoteStore()
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null)
   const supabase = createClient()
-
-  // Initialize audio context on first user interaction
-  const initializeAudioContext = useCallback(() => {
-    if (!audioContext) {
-      const newContext = new (window.AudioContext || (window as any).webkitAudioContext)()
-      setAudioContext(newContext)
-      return newContext
-    }
-    return audioContext
-  }, [audioContext])
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const isAudioUnlockedRef = useRef(false)
 
   const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
@@ -253,40 +244,64 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     }
   }
 
+  // Initialize AudioContext on mount
+  useEffect(() => {
+    // Create AudioContext when component mounts
+    audioContextRef.current = new AudioContext()
+
+    // Cleanup on unmount
+    return () => {
+      if (audioContextRef.current?.state !== 'closed') {
+        audioContextRef.current?.close()
+      }
+    }
+  }, [])
+
+  const unlockAudioContext = useCallback(async () => {
+    if (!audioContextRef.current || isAudioUnlockedRef.current) return
+
+    // Create a silent buffer
+    const buffer = audioContextRef.current.createBuffer(1, 1, 22050)
+    const source = audioContextRef.current.createBufferSource()
+    source.buffer = buffer
+    source.connect(audioContextRef.current.destination)
+    source.start(0)
+
+    // Resume context if needed
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume()
+    }
+
+    isAudioUnlockedRef.current = true
+  }, [])
+
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
-      // Initialize or resume AudioContext on click
-      const ctx = initializeAudioContext()
-
-      // iOS requires resuming the audio context
-      if (ctx.state === 'suspended') {
-        await ctx.resume()
+      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+        return
       }
+
+      // Unlock audio context first
+      await unlockAudioContext()
 
       const response = await fetch('/api/speech', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, language: 'it' }),
+        body: JSON.stringify({ text: phrase, language: 'it' }), // Default to Italian
       })
 
       const { audio } = await response.json()
-      const audioBuffer = await ctx.decodeAudioData(
+      const audioBuffer = await audioContextRef.current.decodeAudioData(
         Buffer.from(audio, 'base64').buffer
       )
-
-      const source = ctx.createBufferSource()
+      const source = audioContextRef.current.createBufferSource()
       source.buffer = audioBuffer
-      source.connect(ctx.destination)
+      source.connect(audioContextRef.current.destination)
       source.start()
-
-      // Clean up only the source, not the entire context
-      source.onended = () => {
-        source.disconnect()
-      }
     } catch (error) {
       console.error('Error playing audio:', error)
     }
-  }, [initializeAudioContext])
+  }, [unlockAudioContext])
 
   const highlightForTranslation = useCallback((selectedText: string) => {
     if (!noteId) return
@@ -311,19 +326,18 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   }, [content, noteId, setStoreContent, saveNoteContent])
   const renderMarkdown = useCallback((text: string) => {
     return text.replace(/`([^`]+)`/g, (_, phrase) => {
-      // Return a data attribute that we can use to identify clickable phrases
-      return `<span class="cursor-pointer text-primary hover:underline" data-phrase="${phrase}">\`${phrase}\`</span>`
+      return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
     })
   }, [])
 
-  // Clean up AudioContext on component unmount
   useEffect(() => {
     return () => {
-      if (audioContext) {
-        audioContext.close()
+      // Cleanup AudioContext when component unmounts
+      if (audioContextRef.current) {
+        audioContextRef.current.close()
       }
     }
-  }, [audioContext])
+  }, [])
 
   if (!noteId) {
     return (
@@ -410,13 +424,13 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
                 className="prose prose-sm max-w-none prose-invert ai-markdown"
                 onClick={(e) => {
                   const target = e.target as HTMLElement
-                  const phrase = target.getAttribute('data-phrase')
-                  if (phrase) {
-                    handlePhraseClick(phrase)
+                  if (target.tagName === 'CODE') {
+                    handlePhraseClick(target.textContent || '')
                   }
                 }}
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-              />
+              >
+                <ReactMarkdown>{content}</ReactMarkdown>
+              </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
               <ContextMenuItem
