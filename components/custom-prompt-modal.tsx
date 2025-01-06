@@ -4,6 +4,7 @@ import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
+import { VoiceRecorder } from './voice-recorder'
 
 interface CustomPromptModalProps {
   isOpen: boolean
@@ -40,6 +41,10 @@ export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModa
     }
   }
 
+  const handleTranscription = (text: string) => {
+    setPrompt(text)
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={() => {
       onClose()
@@ -51,12 +56,15 @@ export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModa
           <DialogTitle>Ask AI About This Note</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4">
-          <Textarea
-            placeholder="Ask any question about this note..."
-            value={prompt}
-            onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
-            className="min-h-[100px]"
-          />
+          <div className="flex gap-2">
+            <Textarea
+              placeholder="Ask any question about this note..."
+              value={prompt}
+              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
+              className="min-h-[100px]"
+            />
+            <VoiceRecorder onTranscription={handleTranscription} />
+          </div>
           <Button
             onClick={handleSubmit}
             disabled={isLoading || !prompt.trim()}
