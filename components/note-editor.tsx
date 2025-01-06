@@ -3,13 +3,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { Button } from './ui/button'
-import { Pencil, Save, Sparkles, Undo2, Redo2, Loader2 } from 'lucide-react'
+import { Pencil, Save, Sparkles, Undo2, Redo2, Loader2, MessageSquare, Eraser, Volume2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from './ui/context-menu'
 import { QuizModal } from './quiz-modal'
 import { debounce } from '@/lib/utils'
 import { useNoteStore } from '@/lib/stores/note-store'
 import type { QuizQuestion } from '@/lib/schemas/quiz'
+import { CustomPromptModal } from './custom-prompt-modal'
+import { CleanupModal } from './cleanup-modal'
 
 interface NoteEditorProps {
   noteId: string | null
@@ -32,6 +34,8 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [realtimeChannel, setRealtimeChannel] = useState<any>(null)
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false)
+  const [isCustomPromptOpen, setIsCustomPromptOpen] = useState(false)
+  const [isCleanupOpen, setIsCleanupOpen] = useState(false)
   const {
     setContent: setStoreContent,
     loadContent: loadStoreContent,
@@ -44,6 +48,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
   const supabase = createClient()
   const audioContextRef = useRef<AudioContext | null>(null)
   const isAudioUnlockedRef = useRef(false)
+  const [playingPhrase, setPlayingPhrase] = useState<string | null>(null)
 
   const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
@@ -244,64 +249,17 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     }
   }
 
-  // Initialize AudioContext on mount
-  useEffect(() => {
-    // Create AudioContext when component mounts
-    audioContextRef.current = new AudioContext()
-
-    // Cleanup on unmount
-    return () => {
-      if (audioContextRef.current?.state !== 'closed') {
-        audioContextRef.current?.close()
-      }
-    }
-  }, [])
-
-  const unlockAudioContext = useCallback(async () => {
-    if (!audioContextRef.current || isAudioUnlockedRef.current) return
-
-    // Create a silent buffer
-    const buffer = audioContextRef.current.createBuffer(1, 1, 22050)
-    const source = audioContextRef.current.createBufferSource()
-    source.buffer = buffer
-    source.connect(audioContextRef.current.destination)
-    source.start(0)
-
-    // Resume context if needed
-    if (audioContextRef.current.state === 'suspended') {
-      await audioContextRef.current.resume()
-    }
-
-    isAudioUnlockedRef.current = true
-  }, [])
-
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
-      if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-        return
-      }
-
-      // Unlock audio context first
-      await unlockAudioContext()
-
-      const response = await fetch('/api/speech', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: phrase, language: 'it' }), // Default to Italian
-      })
-
-      const { audio } = await response.json()
-      const audioBuffer = await audioContextRef.current.decodeAudioData(
-        Buffer.from(audio, 'base64').buffer
-      )
-      const source = audioContextRef.current.createBufferSource()
-      source.buffer = audioBuffer
-      source.connect(audioContextRef.current.destination)
-      source.start()
+      setPlayingPhrase(phrase)
+      const audio = new Audio(`/api/speech?text=${encodeURIComponent(phrase)}&language=it`)
+      audio.onended = () => setPlayingPhrase(null)
+      await audio.play()
     } catch (error) {
       console.error('Error playing audio:', error)
+      setPlayingPhrase(null)
     }
-  }, [unlockAudioContext])
+  }, [])
 
   const highlightForTranslation = useCallback((selectedText: string) => {
     if (!noteId) return
@@ -324,20 +282,25 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     // Save to Supabase
     saveNoteContent(newContent)
   }, [content, noteId, setStoreContent, saveNoteContent])
-  const renderMarkdown = useCallback((text: string) => {
-    return text.replace(/`([^`]+)`/g, (_, phrase) => {
-      return `<span class="cursor-pointer text-primary hover:underline" onclick="handlePhraseClick('${phrase}')">\`${phrase}\`</span>`
-    })
-  }, [])
 
-  useEffect(() => {
-    return () => {
-      // Cleanup AudioContext when component unmounts
-      if (audioContextRef.current) {
-        audioContextRef.current.close()
-      }
-    }
-  }, [])
+  const renderPhrase = useCallback((phrase: string) => {
+    const isPlaying = playingPhrase === phrase
+    return (
+      <button
+        className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 focus:outline-none"
+        data-phrase={phrase}
+      >
+        <code>{phrase}</code>
+        <span className="inline-flex items-center justify-center w-4 h-4">
+          {isPlaying ? <span className="animate-pulse">🔊</span> : '🔈'}
+        </span>
+      </button>
+    )
+  }, [playingPhrase])
+
+  const handleCleanup = (cleanedContent: string) => {
+    handleContentChange(cleanedContent)
+  }
 
   if (!noteId) {
     return (
@@ -392,7 +355,25 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
       </div>
 
       {!isEditing && (
-        <div className="border-b px-4 py-2 flex justify-end">
+        <div className="border-b px-4 py-2 flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={() => setIsCleanupOpen(true)}
+          >
+            <Eraser className="h-4 w-4 mr-2" />
+            Clean Up
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-purple-400 hover:text-purple-300"
+            onClick={() => setIsCustomPromptOpen(true)}
+          >
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Ask AI
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -423,13 +404,22 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
               <div
                 className="prose prose-sm max-w-none prose-invert ai-markdown"
                 onClick={(e) => {
-                  const target = e.target as HTMLElement
-                  if (target.tagName === 'CODE') {
-                    handlePhraseClick(target.textContent || '')
+                  const button = (e.target as HTMLElement).closest('button[data-phrase]')
+                  if (button) {
+                    const phrase = button.getAttribute('data-phrase')
+                    if (phrase) {
+                      handlePhraseClick(phrase)
+                    }
                   }
                 }}
               >
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown
+                  components={{
+                    code: ({ children }) => renderPhrase(children as string)
+                  }}
+                >
+                  {content}
+                </ReactMarkdown>
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent>
@@ -453,6 +443,19 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
           content={content}
         />
       </div>
+
+      <CustomPromptModal
+        isOpen={isCustomPromptOpen}
+        onClose={() => setIsCustomPromptOpen(false)}
+        content={content}
+      />
+
+      <CleanupModal
+        isOpen={isCleanupOpen}
+        onClose={() => setIsCleanupOpen(false)}
+        content={content}
+        onCleanup={handleCleanup}
+      />
     </div>
   )
 }
