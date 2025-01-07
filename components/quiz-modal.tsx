@@ -73,7 +73,7 @@ export function QuizModal({ isOpen, onClose, questions, content }: QuizModalProp
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Quiz Time!</DialogTitle>
+          <DialogTitle className="text-purple-400">Quiz Time!</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           <p className="text-lg mb-4">{questions[currentQuestion].question}</p>

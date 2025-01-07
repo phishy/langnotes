@@ -302,6 +302,11 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     handleContentChange(cleanedContent)
   }
 
+  const handleAddToNote = (text: string) => {
+    const newContent = content ? `${content}\n\n${text}` : text
+    handleContentChange(newContent)
+  }
+
   if (!noteId) {
     return (
       <div className="h-full flex items-center justify-center text-muted-foreground">
@@ -396,6 +401,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
           <textarea
             className="w-full h-full p-2 border rounded-md bg-background"
             value={content}
+            rows={27}
             onChange={(e) => handleContentChange(e.target.value)}
           />
         ) : (
@@ -448,6 +454,7 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
         isOpen={isCustomPromptOpen}
         onClose={() => setIsCustomPromptOpen(false)}
         content={content}
+        onAddToNote={handleAddToNote}
       />
 
       <CleanupModal

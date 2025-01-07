@@ -249,46 +249,56 @@ export function NoteList({ folderId, selectedNote, onSelectNote, onStartEditing 
   }
 
   return (
-    <div className="space-y-2 p-4">
-      <div className="relative mb-4">
-        <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b flex items-center gap-2">
         <Input
           placeholder="Search notes..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-8"
+          className="flex-1"
+          prefixIcon={<Search className="h-4 w-4 text-muted-foreground" />}
         />
-      </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext
-          items={filteredNotes}
-          strategy={verticalListSortingStrategy}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleNewNote}
+          className="text-purple-400 hover:text-purple-300"
         >
-          {filteredNotes.map((note) => (
-            <SortableNote
-              key={note.id}
-              note={note}
-              selectedNote={selectedNote}
-              onSelectNote={onSelectNote}
-              onDelete={handleDeleteClick}
-            />
-          ))}
-        </SortableContext>
-      </DndContext>
-      <Button variant="ghost" className="w-full justify-start" onClick={handleNewNote}>
-        <Plus className="mr-2 h-4 w-4" />
-        New Note
-      </Button>
+          <Plus className="h-5 w-5" />
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-2">
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={Array.from(filteredNotes, note => note.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-1">
+              {filteredNotes.map((note) => (
+                <SortableNote
+                  key={note.id}
+                  note={note}
+                  selectedNote={selectedNote}
+                  onSelectNote={onSelectNote}
+                  onDelete={handleDeleteClick}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
+
       <DeleteConfirmation
-        isOpen={noteToDelete !== null}
+        isOpen={!!noteToDelete}
         onClose={() => setNoteToDelete(null)}
         onConfirm={handleConfirmDelete}
         title="Delete Note"
-        description="Are you sure you want to delete this note? This action cannot be undone."
+        description="Are you sure you want to delete this note?"
       />
     </div>
   )

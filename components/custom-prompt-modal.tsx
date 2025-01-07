@@ -2,7 +2,7 @@ import { useState, ChangeEvent } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { VoiceRecorder } from './voice-recorder'
 
@@ -10,9 +10,10 @@ interface CustomPromptModalProps {
   isOpen: boolean
   onClose: () => void
   content: string
+  onAddToNote?: (text: string) => void
 }
 
-export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModalProps) {
+export function CustomPromptModal({ isOpen, onClose, content, onAddToNote }: CustomPromptModalProps) {
   const [prompt, setPrompt] = useState('')
   const [response, setResponse] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -45,17 +46,24 @@ export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModa
     setPrompt(text)
   }
 
+  const handleAddToNote = () => {
+    if (response && onAddToNote) {
+      onAddToNote(response)
+      onClose()
+    }
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={() => {
       onClose()
       setPrompt('')
       setResponse('')
     }}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Ask AI About This Note</DialogTitle>
+          <DialogTitle className="text-purple-400">What do you want to know?</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
           <div className="flex gap-2">
             <Textarea
               placeholder="Ask any question about this note..."
@@ -68,6 +76,7 @@ export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModa
           <Button
             onClick={handleSubmit}
             disabled={isLoading || !prompt.trim()}
+            className="bg-purple border-purple-600 border text-white"
           >
             {isLoading ? (
               <>
@@ -79,8 +88,18 @@ export function CustomPromptModal({ isOpen, onClose, content }: CustomPromptModa
             )}
           </Button>
           {response && (
-            <div className="mt-4 p-4 rounded-md bg-muted">
-              <ReactMarkdown>{response}</ReactMarkdown>
+            <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
+              <div className="p-4 rounded-md bg-muted">
+                <ReactMarkdown className="prose prose-sm max-w-none prose-invert">{response}</ReactMarkdown>
+              </div>
+              <Button
+                variant="ghost"
+                className="text-purple-300 hover:text-purple-200 hover:bg-purple-900/20 self-end"
+                onClick={handleAddToNote}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add to Note
+              </Button>
             </div>
           )}
         </div>
