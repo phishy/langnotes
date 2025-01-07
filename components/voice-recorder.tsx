@@ -58,7 +58,7 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       }
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp4' })
         await sendToWhisper(audioBlob)
 
         // Stop all tracks
@@ -84,7 +84,7 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
   const sendToWhisper = async (audioBlob: Blob) => {
     try {
       const formData = new FormData()
-      formData.append('file', audioBlob, 'recording.webm')
+      formData.append('file', audioBlob, 'recording.mp4')
 
       const response = await fetch('/api/transcribe', {
         method: 'POST',
