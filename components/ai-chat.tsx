@@ -1,14 +1,12 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useChat } from 'ai/react'
 import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Plus, ArrowUp } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
 import { MarkdownRenderer } from './markdown-renderer'
-import { useCallback } from 'react'
-import { VoiceRecorder } from './voice-recorder'
+import { ChatInput } from './chat-input'
 
 interface AIChatProps {
   noteId: string | null
@@ -50,10 +48,6 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
     // Trigger note refresh in the editor
     onNoteUpdated?.()
   }, [noteId, onNoteUpdated, supabase])
-
-  const handleTranscription = (text: string) => {
-    setInput(text)
-  }
 
   return (
     <div className="h-full flex flex-col">
@@ -98,19 +92,13 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
           </div>
         ))}
       </div>
-      <form onSubmit={handleSubmit} className="p-4 border-t mt-auto">
-        <div className="flex gap-2">
-          <Input
-            value={input}
-            onChange={handleInputChange}
-            placeholder="Ask about language learning..."
-          />
-          <VoiceRecorder onTranscription={handleTranscription} />
-          <Button type="submit" className="text-purple-400 hover:text-purple-300 px-4 bg-black">
-            <ArrowUp className="h-5 w-5" />
-          </Button>
-        </div>
-      </form>
+      <ChatInput
+        value={input}
+        onChange={handleInputChange}
+        onSubmit={handleSubmit}
+        onTranscription={setInput}
+        setValue={setInput}
+      />
     </div>
   )
 }

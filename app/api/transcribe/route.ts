@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     // Convert Blob to File
-    const audioFile = new File([file], 'audio.webm', { type: file.type })
+    const audioFile = new File([file], 'audio.mp4', { type: file.type })
 
     const transcription = await openai.audio.transcriptions.create({
       file: audioFile,

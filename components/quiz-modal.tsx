@@ -96,16 +96,13 @@ export function QuizModal({ isOpen, onClose, questions, content }: QuizModalProp
           </div>
           {selectedAnswer && (
             <div className="mt-4 space-y-2">
-              <p className={`text-sm ${isCorrect ? 'text-green-500' : 'text-red-500'}`}>
-                {isCorrect ? 'Correct!' : 'Incorrect. The correct answer is: ' + questions[currentQuestion].answer}
-              </p>
               {!explanation && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={handleExplanation}
                   disabled={isLoadingExplanation}
-                  className="text-purple-400 hover:text-purple-300"
+                  className="text-white border-purple-400 hover:bg-purple-400/10"
                 >
                   {isLoadingExplanation ? (
                     <>
@@ -123,7 +120,8 @@ export function QuizModal({ isOpen, onClose, questions, content }: QuizModalProp
                 </div>
               )}
               <Button
-                className="mt-2"
+                variant="outline"
+                className="text-white border-purple-400 hover:bg-purple-400/10"
                 onClick={handleNext}
               >
                 {currentQuestion < questions.length - 1 ? 'Next Question' : 'Finish'}

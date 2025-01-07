@@ -58,14 +58,16 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       }
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, { type: 'audio/mp4' })
+        const audioBlob = new Blob(chunksRef.current, {
+          type: mediaRecorder.mimeType,
+        })
         await sendToWhisper(audioBlob)
 
         // Stop all tracks
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.start()
+      mediaRecorder.start(250)
       setIsRecording(true)
     } catch (error) {
       console.error('Error starting recording:', error)

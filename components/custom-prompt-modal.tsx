@@ -1,10 +1,9 @@
-import { useState, ChangeEvent } from 'react'
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
-import { Textarea } from './ui/textarea'
-import { Loader2, Plus } from 'lucide-react'
-import { VoiceRecorder } from './voice-recorder'
+import { Plus } from 'lucide-react'
 import { MarkdownRenderer } from './markdown-renderer'
+import { ChatInput } from './chat-input'
 
 interface CustomPromptModalProps {
   isOpen: boolean
@@ -18,7 +17,8 @@ export function CustomPromptModal({ isOpen, onClose, content, onAddToNote }: Cus
   const [response, setResponse] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!prompt.trim()) return
 
     setIsLoading(true)
@@ -42,8 +42,8 @@ export function CustomPromptModal({ isOpen, onClose, content, onAddToNote }: Cus
     }
   }
 
-  const handleTranscription = (text: string) => {
-    setPrompt(text)
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setPrompt(e.target.value)
   }
 
   const handleAddToNote = () => {
@@ -64,29 +64,15 @@ export function CustomPromptModal({ isOpen, onClose, content, onAddToNote }: Cus
           <DialogTitle className="text-purple-400">What do you want to know?</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
-          <div className="flex gap-2">
-            <Textarea
-              placeholder="Ask any question about this note..."
-              value={prompt}
-              onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setPrompt(e.target.value)}
-              className="min-h-[100px]"
-            />
-            <VoiceRecorder onTranscription={handleTranscription} />
-          </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={isLoading || !prompt.trim()}
-            className="bg-purple border-purple-600 border text-white"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Thinking...
-              </>
-            ) : (
-              'Ask AI'
-            )}
-          </Button>
+          <ChatInput
+            value={prompt}
+            onChange={handleInputChange}
+            onSubmit={handleSubmit}
+            onTranscription={setPrompt}
+            setValue={setPrompt}
+            isLoading={isLoading}
+            placeholder="Ask any question about this note..."
+          />
           {response && (
             <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
               <div>
