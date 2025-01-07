@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Loader2 } from 'lucide-react'
 import type { QuizQuestion } from '@/lib/schemas/quiz'
-import ReactMarkdown from 'react-markdown'
+import { MarkdownRenderer } from './markdown-renderer'
 
 interface QuizModalProps {
   isOpen: boolean
@@ -118,8 +118,8 @@ export function QuizModal({ isOpen, onClose, questions, content }: QuizModalProp
                 </Button>
               )}
               {explanation && (
-                <div className="text-sm mt-2 p-3 bg-muted rounded-md prose prose-sm max-w-none prose-invert">
-                  <ReactMarkdown>{explanation}</ReactMarkdown>
+                <div className="text-sm mt-2 p-3 bg-muted rounded-md">
+                  <MarkdownRenderer content={explanation} />
                 </div>
               )}
               <Button

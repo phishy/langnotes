@@ -6,7 +6,7 @@ import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Plus, ArrowUp } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
-import ReactMarkdown from 'react-markdown'
+import { MarkdownRenderer } from './markdown-renderer'
 import { useCallback } from 'react'
 import { VoiceRecorder } from './voice-recorder'
 
@@ -60,7 +60,7 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
       <div className="p-4 border-b">
         <h2 className="font-semibold">AI Assistant</h2>
       </div>
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 prose prose-sm max-w-none bg-black min-h-0">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -69,13 +69,19 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
             }`}
           >
             <div
-              className={`max-w-[80%] rounded-lg p-3 ${
+              className={`max-w-[80%] rounded-lg ${
                 message.role === 'user'
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-black prose prose-sm max-w-none ai-markdown'
+                  ? 'bg-primary/10 text-primary p-3'
+                  : 'text-foreground'
               }`}
             >
-              <ReactMarkdown>{message.content}</ReactMarkdown>
+              <div className={message.role === 'assistant' ? 'prose prose-invert prose-sm max-w-none [&_table]:border-collapse [&_td]:border [&_td]:border-muted [&_td]:p-2 [&_th]:border [&_th]:border-muted [&_th]:p-2 [&_th]:bg-muted/50 [&_tr]:even:bg-muted/25' : ''}>
+                {message.role === 'assistant' ? (
+                  <MarkdownRenderer content={message.content} />
+                ) : (
+                  message.content
+                )}
+              </div>
               {message.role === 'assistant' && (
                 <Button
                   variant="ghost"
@@ -100,7 +106,7 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
             placeholder="Ask about language learning..."
           />
           <VoiceRecorder onTranscription={handleTranscription} />
-          <Button type="submit"   className="text-purple-400 hover:text-purple-300 px-4 bg-black">
+          <Button type="submit" className="text-purple-400 hover:text-purple-300 px-4 bg-black">
             <ArrowUp className="h-5 w-5" />
           </Button>
         </div>

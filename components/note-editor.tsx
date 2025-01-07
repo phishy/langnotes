@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import ReactMarkdown from 'react-markdown'
 import { Button } from './ui/button'
 import { Pencil, Save, Sparkles, Undo2, Redo2, Loader2, MessageSquare, Eraser, Volume2 } from 'lucide-react'
 import { createClient } from '@/utils/supabase/client'
@@ -12,6 +11,7 @@ import { useNoteStore } from '@/lib/stores/note-store'
 import type { QuizQuestion } from '@/lib/schemas/quiz'
 import { CustomPromptModal } from './custom-prompt-modal'
 import { CleanupModal } from './cleanup-modal'
+import { MarkdownRenderer } from './markdown-renderer'
 
 interface NoteEditorProps {
   noteId: string | null
@@ -46,9 +46,6 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     getCurrentContent
   } = useNoteStore()
   const supabase = createClient()
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const isAudioUnlockedRef = useRef(false)
-  const [playingPhrase, setPlayingPhrase] = useState<string | null>(null)
 
   const saveNoteContent = useCallback(async (content: string) => {
     if (!noteId) return
@@ -249,18 +246,6 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     }
   }
 
-  const handlePhraseClick = useCallback(async (phrase: string) => {
-    try {
-      setPlayingPhrase(phrase)
-      const audio = new Audio(`/api/speech?text=${encodeURIComponent(phrase)}&language=it`)
-      audio.onended = () => setPlayingPhrase(null)
-      await audio.play()
-    } catch (error) {
-      console.error('Error playing audio:', error)
-      setPlayingPhrase(null)
-    }
-  }, [])
-
   const highlightForTranslation = useCallback((selectedText: string) => {
     if (!noteId) return
     const selection = window.getSelection()
@@ -282,21 +267,6 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
     // Save to Supabase
     saveNoteContent(newContent)
   }, [content, noteId, setStoreContent, saveNoteContent])
-
-  const renderPhrase = useCallback((phrase: string) => {
-    const isPlaying = playingPhrase === phrase
-    return (
-      <button
-        className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 focus:outline-none"
-        data-phrase={phrase}
-      >
-        <code>{phrase}</code>
-        <span className="inline-flex items-center justify-center w-4 h-4">
-          {isPlaying ? <span className="animate-pulse">🔊</span> : '🔈'}
-        </span>
-      </button>
-    )
-  }, [playingPhrase])
 
   const handleCleanup = (cleanedContent: string) => {
     handleContentChange(cleanedContent)
@@ -405,42 +375,11 @@ export function NoteEditor({ noteId, defaultIsEditing = false, onEditingChange }
             onChange={(e) => handleContentChange(e.target.value)}
           />
         ) : (
-          <ContextMenu>
-            <ContextMenuTrigger>
-              <div
-                className="prose prose-sm max-w-none prose-invert ai-markdown"
-                onClick={(e) => {
-                  const button = (e.target as HTMLElement).closest('button[data-phrase]')
-                  if (button) {
-                    const phrase = button.getAttribute('data-phrase')
-                    if (phrase) {
-                      handlePhraseClick(phrase)
-                    }
-                  }
-                }}
-              >
-                <ReactMarkdown
-                  components={{
-                    code: ({ children }) => renderPhrase(children as string)
-                  }}
-                >
-                  {content}
-                </ReactMarkdown>
-              </div>
-            </ContextMenuTrigger>
-            <ContextMenuContent>
-              <ContextMenuItem
-                onClick={() => {
-                  const selectedText = window.getSelection()?.toString() || ''
-                  if (selectedText.trim()) {
-                    highlightForTranslation(selectedText)
-                  }
-                }}
-              >
-                Highlight for Translation
-              </ContextMenuItem>
-            </ContextMenuContent>
-          </ContextMenu>
+          <MarkdownRenderer
+            content={content}
+            onHighlight={highlightForTranslation}
+            showContextMenu={true}
+          />
         )}
         <QuizModal
           isOpen={isQuizOpen}

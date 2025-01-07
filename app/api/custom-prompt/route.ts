@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   try {
     const { prompt, content } = await req.json()
 
-    if (!prompt || !content) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: 'Prompt and content are required' },
+        { error: 'Prompt is required' },
         { status: 400 }
       )
     }
@@ -38,7 +38,7 @@ Your task is to:
         },
         {
           role: "user",
-          content: `Here is the note content:\n\n${content}\n\nUser's question: ${prompt}`
+          content: `Here is the note content:\n\n${content || ''}\n\nUser's question: ${prompt}`
         }
       ],
       temperature: 0.7,

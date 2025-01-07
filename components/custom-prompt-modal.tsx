@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
 import { Loader2, Plus } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
 import { VoiceRecorder } from './voice-recorder'
+import { MarkdownRenderer } from './markdown-renderer'
 
 interface CustomPromptModalProps {
   isOpen: boolean
@@ -89,8 +89,8 @@ export function CustomPromptModal({ isOpen, onClose, content, onAddToNote }: Cus
           </Button>
           {response && (
             <div className="mt-4 flex flex-col gap-4 overflow-y-auto">
-              <div className="p-4 rounded-md bg-muted">
-                <ReactMarkdown className="prose prose-sm max-w-none prose-invert">{response}</ReactMarkdown>
+              <div>
+                <MarkdownRenderer content={response} />
               </div>
               <Button
                 variant="ghost"
