@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { Volume2, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 interface Word {
   id: string
@@ -19,6 +20,7 @@ export default function WordsPage() {
   const [loading, setLoading] = useState(true)
   const [playingId, setPlayingId] = useState<string | null>(null)
   const supabase = createClient()
+  const router = useRouter()
 
   useEffect(() => {
     async function loadWords() {
@@ -62,8 +64,8 @@ export default function WordsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-pulse text-muted-foreground">Loading words...</div>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -83,7 +85,8 @@ export default function WordsPage() {
         {words.map((word) => (
           <div
             key={word.id}
-            className="bg-card rounded-lg p-4 shadow-sm border"
+            className="bg-card rounded-lg p-4 shadow-sm border hover:border-purple-500/50 transition-colors cursor-pointer"
+            onClick={() => router.push(`/app/words/${word.id}`)}
           >
             <div className="flex justify-between items-start gap-4">
               <div className="flex items-center gap-3">
@@ -91,7 +94,10 @@ export default function WordsPage() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-purple-400 hover:text-purple-300"
-                  onClick={() => playAudio(word.word, word.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    playAudio(word.word, word.id)
+                  }}
                   disabled={playingId === word.id}
                 >
                   {playingId === word.id ? (
@@ -102,8 +108,7 @@ export default function WordsPage() {
                 </Button>
                 <div>
                   <h3
-                    className="text-lg font-medium text-purple-400 hover:text-purple-300 cursor-pointer"
-                    onClick={() => playAudio(word.word, word.id)}
+                    className="text-lg font-medium text-purple-400 hover:text-purple-300"
                   >
                     {word.word.toLowerCase()}
                   </h3>
