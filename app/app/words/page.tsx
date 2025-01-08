@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
-import { Volume2, Loader2 } from 'lucide-react'
+import { Volume2, Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
+import { Input } from '@/components/ui/input'
 
 interface Word {
   id: string
@@ -29,8 +30,10 @@ interface VocabularyWithWord {
 
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([])
+  const [filteredWords, setFilteredWords] = useState<Word[]>([])
   const [loading, setLoading] = useState(true)
   const [playingId, setPlayingId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
   const supabase = createClient()
   const router = useRouter()
 
@@ -65,6 +68,7 @@ export default function WordsPage() {
           }))
 
         setWords(vocabularyWords)
+        setFilteredWords(vocabularyWords)
       } catch (error) {
         console.error('Error loading words:', error)
         toast.error('Failed to load words')
@@ -75,6 +79,16 @@ export default function WordsPage() {
 
     loadWords()
   }, [supabase])
+
+  // Filter words based on search query
+  useEffect(() => {
+    const query = searchQuery.toLowerCase()
+    const filtered = words.filter(word =>
+      word.word.toLowerCase().includes(query) ||
+      (word.translation?.toLowerCase() || '').includes(query)
+    )
+    setFilteredWords(filtered)
+  }, [searchQuery, words])
 
   async function playAudio(word: string, id: string) {
     try {
@@ -103,61 +117,79 @@ export default function WordsPage() {
     )
   }
 
-  if (words.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full gap-2 p-4 text-center">
-        <p className="text-muted-foreground">No words saved yet.</p>
-        <p className="text-sm text-muted-foreground">Words will appear here when you chat with the AI about Italian.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="h-full overflow-y-auto p-4">
-      <div className="space-y-4">
-        {words.map((word) => (
-          <div
-            key={word.id}
-            className="bg-card rounded-lg p-4 shadow-sm border hover:border-purple-500/50 transition-colors cursor-pointer"
-            onClick={() => router.push(`/app/words/${word.wordId}`)}
-          >
-            <div className="flex justify-between items-start gap-4">
-              <div className="flex items-center gap-3">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-purple-400 hover:text-purple-300"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    playAudio(word.word, word.id)
-                  }}
-                  disabled={playingId === word.id}
-                >
-                  {playingId === word.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-                <div>
-                  <h3
-                    className="text-lg font-medium text-purple-400 hover:text-purple-300"
-                  >
-                    {word.word.toLowerCase()}
-                  </h3>
-                  {word.translation && (
-                    <p className="text-sm text-muted-foreground">{word.translation}</p>
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b">
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search words..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        {filteredWords.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-2 p-4 text-center">
+            {words.length === 0 ? (
+              <>
+                <p className="text-muted-foreground">No words saved yet.</p>
+                <p className="text-sm text-muted-foreground">Words will appear here when you chat with the AI about Italian.</p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">No matching words found.</p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filteredWords.map((word) => (
+              <div
+                key={word.id}
+                className="bg-card rounded-lg p-4 shadow-sm border hover:border-purple-500/50 transition-colors cursor-pointer"
+                onClick={() => router.push(`/app/words/${word.wordId}`)}
+              >
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-purple-400 hover:text-purple-300"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        playAudio(word.word, word.id)
+                      }}
+                      disabled={playingId === word.id}
+                    >
+                      {playingId === word.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Volume2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <div>
+                      <h3
+                        className="text-lg font-medium text-purple-400 hover:text-purple-300"
+                      >
+                        {word.word.toLowerCase()}
+                      </h3>
+                      {word.translation && (
+                        <p className="text-sm text-muted-foreground">{word.translation}</p>
+                      )}
+                    </div>
+                  </div>
+                  {word.type && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
+                      {word.type}
+                    </span>
                   )}
                 </div>
               </div>
-              {word.type && (
-                <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">
-                  {word.type}
-                </span>
-              )}
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   )

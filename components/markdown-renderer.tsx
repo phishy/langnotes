@@ -21,7 +21,13 @@ export function MarkdownRenderer({
   const handlePhraseClick = useCallback(async (phrase: string) => {
     try {
       setPlayingPhrase(phrase)
-      const audio = new Audio(`/api/speech?text=${encodeURIComponent(phrase)}&language=it`)
+
+      // Get the cached URL or generate new speech
+      const response = await fetch(`/api/speech?text=${encodeURIComponent(phrase)}&language=it`)
+      if (!response.ok) throw new Error('Failed to get speech URL')
+
+      const { url } = await response.json()
+      const audio = new Audio(url)
       audio.onended = () => setPlayingPhrase(null)
       await audio.play()
     } catch (error) {
