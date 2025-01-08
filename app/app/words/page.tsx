@@ -15,6 +15,17 @@ interface Word {
   created_at: string
 }
 
+interface VocabularyWithWord {
+  word_id: number
+  words: {
+    id: string
+    word: string
+    translation: string | null
+    type: string | null
+    created_at: string
+  }
+}
+
 export default function WordsPage() {
   const [words, setWords] = useState<Word[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,18 +37,32 @@ export default function WordsPage() {
     async function loadWords() {
       try {
         const { data, error } = await supabase
-          .from('words')
-          .select('*')
-          .order('word', { ascending: true })
+          .from('vocabularies')
+          .select(`
+            word_id,
+            words (
+              id,
+              word,
+              translation,
+              type,
+              created_at
+            )
+          `)
+          .order('words(word)', { ascending: true }) as { data: VocabularyWithWord[] | null, error: any }
 
         if (error) throw error
 
-        // Sort words case-insensitively
-        const sortedWords = (data || []).sort((a, b) =>
-          a.word.toLowerCase().localeCompare(b.word.toLowerCase())
-        )
+        // Transform the nested data structure
+        const vocabularyWords = (data || [])
+          .map(item => ({
+            id: item.words.id,
+            word: item.words.word,
+            translation: item.words.translation,
+            type: item.words.type,
+            created_at: item.words.created_at
+          }))
 
-        setWords(sortedWords)
+        setWords(vocabularyWords)
       } catch (error) {
         console.error('Error loading words:', error)
         toast.error('Failed to load words')
@@ -52,7 +77,13 @@ export default function WordsPage() {
   async function playAudio(word: string, id: string) {
     try {
       setPlayingId(id)
-      const audio = new Audio(`/api/speech?text=${encodeURIComponent(word)}&language=it`)
+
+      // Get the cached URL or generate new speech
+      const response = await fetch(`/api/speech?text=${encodeURIComponent(word)}&language=it`)
+      if (!response.ok) throw new Error('Failed to get speech URL')
+
+      const { url } = await response.json()
+      const audio = new Audio(url)
       audio.onended = () => setPlayingId(null)
       await audio.play()
     } catch (error) {
