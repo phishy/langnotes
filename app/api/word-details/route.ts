@@ -1,15 +1,52 @@
 import { OpenAI } from 'openai'
 import { NextResponse } from 'next/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 const openai = new OpenAI()
 
-export async function POST(req: Request) {
-  try {
-    const { word, type } = await req.json()
+// Create a Supabase client with the service role key
+const supabase = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const wordId = searchParams.get('id')
+
+    if (!wordId) {
+      console.error('Word details: Missing wordId')
+      return NextResponse.json(
+        { error: 'wordId is required' },
+        { status: 400 }
+      )
+    }
+
+    // First check if we have cached content
+    const { data: wordData } = await supabase
+      .from('words')
+      .select('content, word, type')
+      .eq('id', wordId)
+      .single()
+
+    if (!wordData) {
+      console.error('Word details: Word not found')
+      return NextResponse.json(
+        { error: 'Word not found' },
+        { status: 404 }
+      )
+    }
+
+    if (wordData.content) {
+      console.log('Word details: Returning cached content')
+      return NextResponse.json({ content: wordData.content })
+    }
+
+    console.log('Word details: Generating new content for word:', wordData.word, 'id:', wordId)
     let prompt = ''
-    if (type?.toLowerCase() === 'verb') {
-      prompt = `For the Italian verb "${word}", provide:
+    if (wordData.type?.toLowerCase() === 'verb') {
+      prompt = `For the Italian verb "${wordData.word}", provide:
 
 1. The infinitive form (wrap the verb in backticks)
 2. A brief definition
@@ -20,7 +57,7 @@ export async function POST(req: Request) {
 
 Format the response in markdown with appropriate headers and bullet points. Ensure all Italian words and phrases are wrapped in backticks (\`like this\`) to make them playable.`
     } else {
-      prompt = `For the Italian word "${word}" (${type || 'unknown type'}), provide:
+      prompt = `For the Italian word "${wordData.word}" (${wordData.type || 'unknown type'}), provide:
 
 1. The word type (if known) and gender (for nouns) - wrap the word in backticks
 2. A detailed definition with any important notes about usage
@@ -46,6 +83,17 @@ Format the response in markdown with appropriate headers and bullet points. Ensu
     })
 
     const content = completion.choices[0].message.content || ''
+
+    // Cache the content in the words table
+    console.log('Word details: Caching content')
+    const { error: updateError } = await supabase
+      .from('words')
+      .update({ content })
+      .eq('id', wordId)
+
+    if (updateError) {
+      console.error('Word details: Error caching content:', updateError)
+    }
 
     return NextResponse.json({ content })
   } catch (error) {

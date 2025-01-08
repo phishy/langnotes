@@ -42,14 +42,14 @@ export default function WordPage({ params }: { params: Promise<{ wordId: string 
         if (error) throw error
         setWord(data)
 
+        if (!data?.id) {
+          throw new Error('Word not found')
+        }
+
         // After loading the word, fetch its details
-        const response = await fetch('/api/word-details', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            word: data.word,
-            type: data.type
-          })
+        const response = await fetch(`/api/word-details?id=${data.id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
         })
 
         if (!response.ok) throw new Error('Failed to load word details')

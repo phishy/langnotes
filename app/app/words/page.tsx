@@ -13,6 +13,7 @@ interface Word {
   translation: string | null
   type: string | null
   created_at: string
+  wordId: number
 }
 
 interface VocabularyWithWord {
@@ -59,7 +60,8 @@ export default function WordsPage() {
             word: item.words.word,
             translation: item.words.translation,
             type: item.words.type,
-            created_at: item.words.created_at
+            created_at: item.words.created_at,
+            wordId: item.word_id
           }))
 
         setWords(vocabularyWords)
@@ -117,7 +119,7 @@ export default function WordsPage() {
           <div
             key={word.id}
             className="bg-card rounded-lg p-4 shadow-sm border hover:border-purple-500/50 transition-colors cursor-pointer"
-            onClick={() => router.push(`/app/words/${word.id}`)}
+            onClick={() => router.push(`/app/words/${word.wordId}`)}
           >
             <div className="flex justify-between items-start gap-4">
               <div className="flex items-center gap-3">
