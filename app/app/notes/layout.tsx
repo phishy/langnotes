@@ -42,7 +42,7 @@ export default function AppLayout({
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Link href="/protected/app" className="text-muted-foreground hover:text-foreground transition-colors">
+              <Link href="/notes" className="text-muted-foreground hover:text-foreground transition-colors">
                 My Notes
               </Link>
             </nav>

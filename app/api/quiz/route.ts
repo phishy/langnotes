@@ -1,56 +1,125 @@
-import OpenAI from 'openai';
-import { NextResponse } from 'next/server';
-import { QuizResponse } from '@/lib/schemas/quiz';
+import { Configuration, OpenAIApi } from 'openai-edge'
+import { createClient } from '@/utils/supabase/server'
+import { z } from 'zod'
 
-if (!process.env.OPENAI_API_KEY) {
-  throw new Error('Missing OPENAI_API_KEY environment variable');
-}
+const config = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY
+})
+const openai = new OpenAIApi(config)
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const runtime = 'edge'
 
-export async function POST(req: Request) {
-  const { content } = await req.json();
+const QuizQuestion = z.object({
+  question: z.string(),
+  correctAnswer: z.string(),
+  options: z.array(z.string()).length(4),
+  explanation: z.string()
+})
 
-  if (!content) {
-    return NextResponse.json({ error: 'Content is required' }, { status: 400 });
-  }
+const QuizResponse = z.array(QuizQuestion).min(1)
 
+export async function GET() {
   try {
-    const completion = await openai.chat.completions.create({
+    const supabase = await createClient()
+
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    if (userError) throw userError
+    if (!user) {
+      return new Response('Unauthorized', { status: 401 })
+    }
+
+    // Get user's saved words
+    const { data: words, error: wordsError } = await supabase
+      .from('words')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(20)
+
+    if (wordsError) throw wordsError
+    if (!words?.length) {
+      return new Response(JSON.stringify({ error: 'No words found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Generate quiz questions using OpenAI
+    const response = await openai.createChatCompletion({
       model: 'gpt-4o',
+      stream: false,
+      temperature: 0.7,
       messages: [
         {
           role: 'system',
-          content: `You are a helpful quiz generator. Create a quiz based on the provided content with exactly 5 multiple choice questions.
-          Each question must have exactly 4 options, with one correct answer.
-          The response must be a JSON object with this exact structure:
-          {
-            "questions": [
-              {
-                "question": "Question text here",
-                "answer": "The correct answer here (must be one of the options)",
-                "options": ["option1", "option2", "option3", "option4"]
-              }
-            ]
-          }`
-        },
-        { role: 'user', content },
+          content: `Generate quiz questions based on these Italian words. Each question should test the user's understanding of the word's meaning, usage, or grammar.
+
+Words data:
+${words.map(w => `- ${w.word} (${w.translation || 'no translation'}) [${w.type || 'no type'}]`).join('\n')}
+
+Create questions that:
+1. Test vocabulary understanding
+2. Include grammar concepts when relevant
+3. Test proper usage in context
+4. Mix different types of questions (multiple choice, fill in the blank, etc.)
+5. Include clear explanations for the correct answers`
+        }
       ],
-      response_format: { type: "json_object" },
-    });
+      functions: [
+        {
+          name: 'generateQuiz',
+          description: 'Generate quiz questions from Italian vocabulary',
+          parameters: {
+            type: 'object',
+            properties: {
+              questions: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    question: {
+                      type: 'string',
+                      description: 'The quiz question'
+                    },
+                    correctAnswer: {
+                      type: 'string',
+                      description: 'The correct answer'
+                    },
+                    options: {
+                      type: 'array',
+                      items: { type: 'string' },
+                      minItems: 4,
+                      maxItems: 4,
+                      description: 'Four possible answers including the correct one'
+                    },
+                    explanation: {
+                      type: 'string',
+                      description: 'Explanation of why this is the correct answer'
+                    }
+                  },
+                  required: ['question', 'correctAnswer', 'options', 'explanation']
+                }
+              }
+            },
+            required: ['questions']
+          }
+        }
+      ],
+      function_call: { name: 'generateQuiz' }
+    })
 
-    const responseContent = completion.choices[0].message.content;
-    if (!responseContent) {
-      throw new Error('No content in response');
-    }
+    const data = await response.json()
+    const quizData = JSON.parse(data.choices[0].message.function_call.arguments)
+    const validatedQuiz = QuizResponse.parse(quizData.questions)
 
-    const response = JSON.parse(responseContent);
-    const parsedQuestions = QuizResponse.parse(response.questions);
-    return NextResponse.json(parsedQuestions);
+    return new Response(JSON.stringify(validatedQuiz), {
+      headers: { 'Content-Type': 'application/json' }
+    })
   } catch (error) {
-    console.error('Error generating quiz:', error);
-    return NextResponse.json({ error: 'Failed to generate quiz' }, { status: 500 });
+    console.error('Error generating quiz:', error)
+    return new Response(JSON.stringify({ error: 'Failed to generate quiz' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    })
   }
 }

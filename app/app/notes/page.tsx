@@ -13,9 +13,9 @@ export default async function AppPage() {
 
   // If there's a folder, redirect to it
   if (folders && folders.length > 0) {
-    redirect(`/protected/app/${folders[0].id}`)
+    redirect(`/app/notes/${folders[0].id}`)
   }
 
   // Otherwise, just show the app without a selected folder
-  redirect('/protected/app/_')
+  redirect('/app/notes/_')
 }

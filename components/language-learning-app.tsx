@@ -6,7 +6,7 @@ import { NoteList } from './note-list'
 import { NoteEditor } from './note-editor'
 import { AIChat } from './ai-chat'
 import { Button } from './ui/button'
-import { ChevronLeft, ChevronRight, Menu, X, Folder, FileText, Bot } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react'
 import {
   Panel,
   PanelGroup,
@@ -63,15 +63,25 @@ export function LanguageLearningApp() {
     }
   }, [isMobile, selectedNote])
 
+  const handleBack = () => {
+    if (selectedNote && selectedNote !== '_') {
+      router.push(`/app/notes/${selectedFolder}`)
+      setActiveView('notes')
+    } else if (selectedFolder && selectedFolder !== '_') {
+      router.push('/app/notes/_')
+      setActiveView('folders')
+    }
+  }
+
   const handleSelectFolder = (folderId: string) => {
-    router.push(`/protected/app/${folderId}`)
+    router.push(`/app/notes/${folderId}`)
     if (isMobile) {
       setActiveView('notes')
     }
   }
 
   const handleSelectNote = (noteId: string | null) => {
-    router.push(`/protected/app/${selectedFolder}/${noteId || '_'}`)
+    router.push(`/app/notes/${selectedFolder}/${noteId || '_'}`)
     if (isMobile) {
       setActiveView('editor')
     }
@@ -95,6 +105,21 @@ export function LanguageLearningApp() {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Mobile Back Button */}
+      {isMobile && (activeView === 'notes' || activeView === 'editor') && (
+        <div className="p-4 border-b">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBack}
+            className="gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+        </div>
+      )}
+
       {/* Main Content */}
       <div className="flex-1 min-h-0">
         <PanelGroup direction="horizontal" className="h-full">
@@ -103,9 +128,9 @@ export function LanguageLearningApp() {
             <>
               <Panel defaultSize={15} minSize={10}>
                 <div className="h-full border-r overflow-hidden">
-                  <div className="h-full overflow-y-auto pb-16 md:pb-0">
+                  <div className="h-full overflow-y-auto">
                     <div className="p-4 flex justify-between items-center">
-                      <h2 className="font-semibold">Folders</h2>
+                      {/* <h2 className="font-semibold">Folders</h2> */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -131,7 +156,7 @@ export function LanguageLearningApp() {
             <>
               <Panel defaultSize={20} minSize={15}>
                 <div className="h-full border-r overflow-hidden">
-                  <div className="h-full overflow-y-auto pb-16 md:pb-0">
+                  <div className="h-full overflow-y-auto">
                     <div className="p-4 flex justify-between items-center">
                       <h2 className="font-semibold">Notes</h2>
                       {!showFolders && (
@@ -162,7 +187,7 @@ export function LanguageLearningApp() {
           {(!isMobile || activeView === 'editor') && (
             <Panel>
               <div className="h-full overflow-hidden">
-                <div className="h-full overflow-y-auto pb-16 md:pb-0">
+                <div className="h-full overflow-y-auto">
                   <NoteEditor
                     key={noteVersion}
                     noteId={selectedNote === '_' ? null : selectedNote}
@@ -180,54 +205,12 @@ export function LanguageLearningApp() {
             isMobile && activeView !== 'chat' && 'hidden'
           )}>
             <div className="h-full border-l overflow-hidden">
-              <div className="h-full overflow-y-auto pb-16 md:pb-0">
+              <div className="h-full overflow-y-auto">
                 <AIChat noteId={selectedNote === '_' ? null : selectedNote} />
               </div>
             </div>
           </Panel>
         </PanelGroup>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t">
-        <div className="flex justify-around items-center p-2">
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setActiveView('folders')}
-            className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
-              activeView === 'folders' ? "text-purple-500" : "text-muted-foreground"
-            )}
-          >
-            <Folder className="h-5 w-5" />
-            <span className="text-xs">Folders</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setActiveView('notes')}
-            className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
-              (activeView === 'notes' || activeView === 'editor') ? "text-purple-500" : "text-muted-foreground"
-            )}
-          >
-            <FileText className="h-5 w-5" />
-            <span className="text-xs">Notes</span>
-          </Button>
-          <Button
-            variant="ghost"
-            size="lg"
-            onClick={() => setActiveView('chat')}
-            className={cn(
-              "flex-1 flex flex-col items-center gap-1 h-auto py-2 hover:bg-transparent hover:text-purple-500",
-              activeView === 'chat' ? "text-purple-500" : "text-muted-foreground"
-            )}
-          >
-            <Bot className="h-5 w-5" />
-            <span className="text-xs">AI</span>
-          </Button>
-        </div>
       </div>
     </div>
   )

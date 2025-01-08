@@ -12,7 +12,7 @@ export default async function FolderPage({
 
   // If no folder selected, render the app
   if (folderId === '_') {
-    redirect('/protected/app/_/_')
+    redirect('/app/notes/_/_')
   }
 
   const supabase = await createClient()
@@ -27,9 +27,9 @@ export default async function FolderPage({
 
   // If there's a note, redirect to it
   if (notes && notes.length > 0) {
-    redirect(`/protected/app/${folderId}/${notes[0].id}`)
+    redirect(`/app/notes/${folderId}/${notes[0].id}`)
   }
 
   // Otherwise, show the folder without a selected note
-  redirect(`/protected/app/${folderId}/_`)
+  redirect(`/app/notes/${folderId}/_`)
 }
