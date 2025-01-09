@@ -40,7 +40,7 @@ export function MarkdownRenderer({
     const isPlaying = playingPhrase === phrase
     return (
       <button
-        className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 focus:outline-none"
+        className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300 focus:outline-none text-lg"
         data-phrase={phrase}
       >
         <code>{phrase}</code>
@@ -61,7 +61,7 @@ export function MarkdownRenderer({
     }
   }
 
-  const baseClassName = 'prose prose-sm max-w-none prose-invert ai-markdown [&_table]:border-collapse [&_td]:border [&_td]:border-muted [&_td]:p-2 [&_th]:border [&_th]:border-muted [&_th]:p-2 [&_th]:bg-muted/50 [&_tr]:even:bg-muted/25'
+  const baseClassName = 'prose prose-lg max-w-none prose-invert ai-markdown [&_table]:border-collapse [&_td]:border [&_td]:border-muted [&_td]:p-2 [&_th]:border [&_th]:border-muted [&_th]:p-2 [&_th]:bg-muted/50 [&_tr]:even:bg-muted/25 [&_p]:text-lg [&_li]:text-lg'
   const finalClassName = `${baseClassName} ${className}`
 
   const markdown = (

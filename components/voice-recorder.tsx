@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from './ui/button'
 import { Mic, Loader2, Square } from 'lucide-react'
 
@@ -24,104 +24,84 @@ async function getUserPermission(): Promise<boolean> {
 
 export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
-
-  useEffect(() => {
-    // Check for permission on mount
-    getUserPermission().then(setHasPermission)
-  }, [])
+  const [isLoading, setIsLoading] = useState(false)
+  const mediaRecorder = useRef<MediaRecorder | null>(null)
+  const audioChunks = useRef<Blob[]>([])
 
   const startRecording = async () => {
+    setIsLoading(true)
     try {
-      // If we haven't checked permissions yet, or need to request again
+      const hasPermission = await getUserPermission()
       if (!hasPermission) {
-        const granted = await getUserPermission()
-        if (!granted) {
-          console.error('Microphone permission denied')
-          return
-        }
-        setHasPermission(true)
+        console.error('Microphone permission denied')
+        setIsLoading(false)
+        return
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mediaRecorder = new MediaRecorder(stream)
-      mediaRecorderRef.current = mediaRecorder
-      chunksRef.current = []
+      mediaRecorder.current = new MediaRecorder(stream)
+      audioChunks.current = []
 
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data)
-        }
+      mediaRecorder.current.ondataavailable = (event) => {
+        audioChunks.current.push(event.data)
       }
 
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(chunksRef.current, {
-          type: mediaRecorder.mimeType,
-        })
-        await sendToWhisper(audioBlob)
+      mediaRecorder.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' })
+        const formData = new FormData()
+        formData.append('file', audioBlob)
 
-        // Stop all tracks
+        try {
+          const response = await fetch('/api/transcribe', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!response.ok) {
+            throw new Error('Transcription failed')
+          }
+
+          const { text } = await response.json()
+          onTranscription(text)
+        } catch (error) {
+          console.error('Error transcribing audio:', error)
+        } finally {
+          setIsLoading(false)
+          setIsRecording(false)
+        }
+
+        // Clean up the stream
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.start(250)
+      mediaRecorder.current.start()
       setIsRecording(true)
     } catch (error) {
       console.error('Error starting recording:', error)
-      setHasPermission(false)
+      setIsLoading(false)
     }
   }
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop()
-      setIsRecording(false)
-      setIsProcessing(true)
+    if (mediaRecorder.current && isRecording) {
+      mediaRecorder.current.stop()
+      setIsLoading(true)
     }
-  }
-
-  const sendToWhisper = async (audioBlob: Blob) => {
-    try {
-      const formData = new FormData()
-      formData.append('file', audioBlob, 'recording.mp4')
-
-      const response = await fetch('/api/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to transcribe audio')
-      }
-
-      const { text } = await response.json()
-      onTranscription(text)
-    } catch (error) {
-      console.error('Error transcribing audio:', error)
-    } finally {
-      setIsProcessing(false)
-    }
-  }
-
-  // If permissions API is not supported or permission was denied
-  if (hasPermission === false) {
-    return null
   }
 
   return (
     <Button
+      type="button"
       variant="ghost"
-      className="text-purple-400 hover:text-purple-300 px-4"
+      size="icon"
+      className="text-purple-400 hover:text-purple-300"
       onClick={isRecording ? stopRecording : startRecording}
-      disabled={isProcessing || hasPermission === null}
+      disabled={isLoading}
     >
-      {isProcessing ? (
+      {isLoading ? (
         <Loader2 className="h-5 w-5 animate-spin" />
       ) : isRecording ? (
-        <Square className="h-5 w-5 text-red-400" />
+        <Square className="h-5 w-5" />
       ) : (
         <Mic className="h-5 w-5" />
       )}

@@ -1,7 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import { Button } from './ui/button'
 import { Textarea } from './ui/textarea'
-import { ArrowUp } from 'lucide-react'
+import { ArrowUp, Loader2 } from 'lucide-react'
 import { VoiceRecorder } from './voice-recorder'
 
 interface ChatInputProps {
@@ -55,20 +55,29 @@ export function ChatInput({
   }, [value, adjustTextareaHeight])
 
   return (
-    <form onSubmit={onSubmit} className="p-4 border-t mt-auto">
+    <form onSubmit={onSubmit} className="p-4 mt-auto">
       <div className="flex flex-col gap-2">
         <Textarea
           ref={textareaRef}
           value={value}
           onChange={handleTextareaChange}
           placeholder={placeholder}
-          className="min-h-[60px] resize-none overflow-hidden"
+          className="min-h-[60px] resize-none overflow-hidden text-base"
+          style={{ fontSize: '16px' }}
           rows={1}
         />
         <div className="flex justify-end gap-2">
           <VoiceRecorder onTranscription={handleTranscription} />
-          <Button type="submit" className="text-purple-400 hover:text-purple-300 px-4 bg-black">
-            <ArrowUp className="h-5 w-5" />
+          <Button
+            type="submit"
+            className="text-purple-400 hover:text-purple-400 px-4 bg-black hover:bg-black"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <ArrowUp className="h-5 w-5" />
+            )}
           </Button>
         </div>
       </div>

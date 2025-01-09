@@ -1,27 +1,21 @@
-import { signUpAction } from "@/app/actions";
-import { FormMessage, Message } from "@/components/form-message";
-import { SubmitButton } from "@/components/submit-button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Link from "next/link";
-import { SmtpMessage } from "../smtp-message";
+import { signUpAction } from '@/app/actions'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { FormMessage } from '@/components/form-message'
+import { SubmitButton } from '@/components/submit-button'
+import Link from 'next/link'
 
-export default async function Signup(props: { searchParams: Promise<Message> }) {
-  const searchParams = await props.searchParams;
-
-  if ("message" in searchParams) {
-    return (
-      <main className="min-h-screen bg-black flex items-center justify-center p-4">
-        <div className="w-full sm:max-w-md bg-gray-900 p-8 rounded-lg shadow-lg">
-          <FormMessage message={searchParams} />
-        </div>
-      </main>
-    );
-  }
+export default async function SignUp({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string }>
+}) {
+  const params = await searchParams
 
   return (
-    <main className="min-h-screen bg-black">
-      <div className="container mx-auto min-h-screen flex flex-col md:flex-row">
+    <main className="flex-1 flex">
+      <div className="flex-1 flex flex-col md:flex-row">
         {/* First Column - Brand and Description (hidden on mobile) */}
         <div className="hidden md:flex md:w-1/2 p-8 flex-col justify-center">
           <div className="max-w-md">
@@ -29,59 +23,62 @@ export default async function Signup(props: { searchParams: Promise<Message> }) 
               LangNotes
             </Link>
             <p className="text-gray-300 text-lg leading-relaxed mt-6">
-              Join our community of language learners. Get started with AI-powered
-              note-taking, progress tracking, and personalized learning paths designed
-              to help you achieve fluency faster.
+              Your intelligent companion for language learning. Take notes, track progress,
+              and master new languages with our AI-powered platform that adapts to your
+              learning style.
             </p>
           </div>
         </div>
 
-        {/* Second Column - Signup Form */}
-        <div className="w-full md:w-1/2 flex items-center justify-center p-8">
-          <div className="w-full max-w-md">
-            <form className="bg-gray-900 p-8 rounded-lg shadow-lg">
-              <h1 className="text-2xl font-medium text-purple-500 mb-2">Sign up</h1>
-              <p className="text-sm text-gray-300">
-                Already have an account?{" "}
-                <Link className="text-purple-400 font-medium hover:text-purple-300 underline" href="/sign-in">
-                  Sign in
-                </Link>
-              </p>
+        {/* Second Column - Sign Up Form */}
+        <div className="flex-1 md:w-1/2 flex items-center justify-center p-8">
+          <form className="w-full max-w-md bg-gray-900 p-8 rounded-lg shadow-lg">
+            <h1 className="text-2xl font-medium text-purple-500 mb-2">Create an account</h1>
+            <p className="text-sm text-gray-300">
+              Already have an account?{" "}
+              <Link className="text-purple-400 font-medium hover:text-purple-300 underline" href="/sign-in">
+                Sign in
+              </Link>
+            </p>
 
-              <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
-                <Label htmlFor="email" className="text-gray-300">Email</Label>
-                <Input
-                  name="email"
-                  placeholder="you@example.com"
-                  required
-                  className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
-                />
+            <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+              <Label htmlFor="email" className="text-gray-300">Email</Label>
+              <Input
+                name="email"
+                placeholder="you@example.com"
+                required
+                tabIndex={1}
+                className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
+              />
 
-                <Label htmlFor="password" className="text-gray-300">Password</Label>
-                <Input
-                  type="password"
-                  name="password"
-                  placeholder="Your password"
-                  minLength={6}
-                  required
-                  className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
-                />
+              <Label htmlFor="password" className="text-gray-300">Password</Label>
+              <Input
+                type="password"
+                name="password"
+                placeholder="Create a password"
+                required
+                tabIndex={2}
+                className="bg-gray-800 border-gray-700 text-gray-200 focus:border-purple-500"
+              />
 
-                <SubmitButton
-                  formAction={signUpAction}
-                  pendingText="Signing up..."
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-                >
-                  Sign up
-                </SubmitButton>
+              <SubmitButton
+                pendingText="Creating Account..."
+                formAction={signUpAction}
+                tabIndex={3}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Create Account
+              </SubmitButton>
 
-                <FormMessage message={searchParams} />
-              </div>
-            </form>
-            <SmtpMessage />
-          </div>
+              {params?.message && (
+                <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
+                  {params.message}
+                </p>
+              )}
+            </div>
+          </form>
         </div>
       </div>
     </main>
-  );
+  )
 }

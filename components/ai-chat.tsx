@@ -14,7 +14,7 @@ interface AIChatProps {
 }
 
 export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
-  const { messages, input, handleInputChange, handleSubmit, setInput } = useChat()
+  const { messages, input, handleInputChange, handleSubmit, setInput, isLoading } = useChat()
   const supabase = createClient()
 
   const addToNote = useCallback(async (content: string) => {
@@ -98,6 +98,7 @@ export function AIChat({ noteId, onNoteUpdated }: AIChatProps) {
         onSubmit={handleSubmit}
         onTranscription={setInput}
         setValue={setInput}
+        isLoading={isLoading}
       />
     </div>
   )

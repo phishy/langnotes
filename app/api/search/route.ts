@@ -11,9 +11,13 @@ const openai = new OpenAIApi(config)
 export const runtime = 'edge'
 
 export async function POST(req: Request) {
+  console.log('[Search API] Starting request processing')
   try {
     const { messages } = await req.json()
+    console.log('[Search API] Received messages:', messages.length)
+
     const supabase = await createClient()
+    console.log('[Search API] Supabase client created')
 
     // Start streaming the response immediately
     const stream = OpenAIStream(await openai.createChatCompletion({
@@ -31,10 +35,12 @@ export async function POST(req: Request) {
         }
       ]
     }))
+    console.log('[Search API] Created streaming response')
 
     // In the background, get structured data and save to Supabase
     const structuredPromise = (async () => {
       try {
+        console.log('[Search API] Starting structured data processing')
         const structuredResponse = await openai.createChatCompletion({
           model: 'gpt-4o',
           stream: false,
@@ -92,42 +98,45 @@ Your response should be in JSON format with two fields:
           ],
           function_call: { name: 'respond' }
         })
+        console.log('[Search API] Got structured response from OpenAI')
 
         const structuredData = await structuredResponse.json()
         const responseData = JSON.parse(structuredData.choices[0].message.function_call.arguments)
+        console.log('[Search API] Parsed structured data:', {
+          contentLength: responseData.content?.length,
+          wordsCount: responseData.words?.length
+        })
 
         // Save to Supabase
         const { data: { user } } = await supabase.auth.getUser()
+        console.log('[Search API] Got user:', user?.id)
+
         if (user) {
           // Save the search
-          await supabase
+          const { data: searchData, error: searchError } = await supabase
             .from('searches')
             .insert([{
               query: messages[messages.length - 1].content,
               response: responseData,
+              language_id: 1
             }])
+            .select()
 
-          // Bulk insert words using upsert to avoid duplicates
-          if (responseData.words?.length > 0) {
-            const wordsToInsert = responseData.words.map((word: { word: string; translation?: string; type?: string }) => ({
-              word: word.word,
-              translation: word.translation || null,
-              type: word.type || null,
-            }))
-
-            await supabase
-              .from('words')
-              .upsert(wordsToInsert)
+          if (searchError) {
+            console.error('[Search API] Error inserting search:', searchError)
+          } else {
+            console.log('[Search API] Successfully inserted search:', searchData[0]?.id)
           }
         }
       } catch (error) {
-        console.error('Error processing structured data:', error)
+        console.error('[Search API] Error in structured data processing:', error)
       }
     })()
 
+    console.log('[Search API] Returning streaming response')
     return new StreamingTextResponse(stream)
   } catch (error) {
-    console.error('Error in search API:', error)
+    console.error('[Search API] Fatal error:', error)
     return new Response(JSON.stringify({ error: 'An error occurred processing your request' }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }

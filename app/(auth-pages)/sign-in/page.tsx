@@ -1,16 +1,21 @@
-import { signInAction } from "@/app/actions";
-import { FormMessage, Message } from "@/components/form-message";
-import { SubmitButton } from "@/components/submit-button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import Link from "next/link";
+import { signInAction } from '@/app/actions'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { FormMessage } from '@/components/form-message'
+import { SubmitButton } from '@/components/submit-button'
+import Link from 'next/link'
 
-export default async function Login(props: { searchParams: Promise<Message> }) {
-  const searchParams = await props.searchParams;
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ message?: string }>
+}) {
+  const params = await searchParams
 
   return (
-    <main className="min-h-screen bg-black">
-      <div className="container mx-auto min-h-screen flex flex-col md:flex-row">
+    <main className="flex-1 flex">
+      <div className="flex-1 flex flex-col md:flex-row">
         {/* First Column - Brand and Description (hidden on mobile) */}
         <div className="hidden md:flex md:w-1/2 p-8 flex-col justify-center">
           <div className="max-w-md">
@@ -26,7 +31,7 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
         </div>
 
         {/* Second Column - Login Form */}
-        <div className="w-full md:w-1/2 flex items-center justify-center p-8">
+        <div className="flex-1 md:w-1/2 flex items-center justify-center p-8">
           <form className="w-full max-w-md bg-gray-900 p-8 rounded-lg shadow-lg">
             <h1 className="text-2xl font-medium text-purple-500 mb-2">Sign in</h1>
             <p className="text-sm text-gray-300">
@@ -75,11 +80,15 @@ export default async function Login(props: { searchParams: Promise<Message> }) {
                 Sign in
               </SubmitButton>
 
-              <FormMessage message={searchParams} />
+              {params?.message && (
+                <p className="mt-4 p-4 bg-foreground/10 text-foreground text-center">
+                  {params.message}
+                </p>
+              )}
             </div>
           </form>
         </div>
       </div>
     </main>
-  );
+  )
 }
