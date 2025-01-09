@@ -76,7 +76,7 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
         stream.getTracks().forEach(track => track.stop())
       }
 
-      mediaRecorder.current.start()
+      mediaRecorder.current.start(250);
       setIsRecording(true)
     } catch (error) {
       console.error('Error starting recording:', error)
