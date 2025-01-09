@@ -25,16 +25,17 @@ async function getUserPermission(): Promise<boolean> {
 export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isRequesting, setIsRequesting] = useState(false)
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const audioChunks = useRef<Blob[]>([])
 
   const startRecording = async () => {
-    setIsLoading(true)
+    setIsRequesting(true)
     try {
       const hasPermission = await getUserPermission()
       if (!hasPermission) {
         console.error('Microphone permission denied')
-        setIsLoading(false)
+        setIsRequesting(false)
         return
       }
 
@@ -47,6 +48,7 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       }
 
       mediaRecorder.current.onstop = async () => {
+        setIsLoading(true)
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' })
         const formData = new FormData()
         formData.append('file', audioBlob)
@@ -78,14 +80,14 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       setIsRecording(true)
     } catch (error) {
       console.error('Error starting recording:', error)
-      setIsLoading(false)
+    } finally {
+      setIsRequesting(false)
     }
   }
 
   const stopRecording = () => {
     if (mediaRecorder.current && isRecording) {
       mediaRecorder.current.stop()
-      setIsLoading(true)
     }
   }
 
@@ -96,9 +98,9 @@ export function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
       size="icon"
       className="text-purple-400 hover:text-purple-300"
       onClick={isRecording ? stopRecording : startRecording}
-      disabled={isLoading}
+      disabled={isLoading || isRequesting}
     >
-      {isLoading ? (
+      {isLoading || isRequesting ? (
         <Loader2 className="h-5 w-5 animate-spin" />
       ) : isRecording ? (
         <Square className="h-5 w-5" />

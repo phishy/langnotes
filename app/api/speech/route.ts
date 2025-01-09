@@ -88,7 +88,16 @@ export async function GET(request: Request) {
         .storage
         .from(BUCKET_NAME)
         .getPublicUrl(filename)
-      return NextResponse.json({ url: urlData.publicUrl })
+
+      return NextResponse.json(
+        { url: urlData.publicUrl },
+        {
+          headers: {
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            'ETag': `"${hash}"`,
+          },
+        }
+      )
     }
 
     if (downloadError && downloadError.message !== 'The resource was not found') {
@@ -126,7 +135,15 @@ export async function GET(request: Request) {
       .getPublicUrl(filename)
 
     console.log('Speech route: Successfully completed, returning URL')
-    return NextResponse.json({ url: fileData.publicUrl })
+    return NextResponse.json(
+      { url: fileData.publicUrl },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          'ETag': `"${hash}"`,
+        },
+      }
+    )
   } catch (error) {
     console.error('Speech route: Unhandled error:', error)
     return NextResponse.json(
