@@ -6,11 +6,6 @@ import { usePathname } from "next/navigation"
 
 const navItems = [
   {
-    href: "/",
-    icon: Home,
-    label: "Home",
-  },
-  {
     href: "/app",
     icon: Bot,
     label: "AI",
@@ -44,6 +39,13 @@ export default function SearchLayout({
 }) {
   const pathname = usePathname()
 
+  const isActive = (href: string) => {
+    if (href === '/app/notes') {
+      return pathname.startsWith('/app/notes')
+    }
+    return pathname === href
+  }
+
   return (
     <div className="fixed inset-0 flex flex-col bg-background">
       <main className="flex-1 overflow-y-auto overscroll-contain">
@@ -53,14 +55,14 @@ export default function SearchLayout({
       <nav className="fixed bottom-0 left-0 right-0 h-16 border-t bg-background">
         <div className="flex justify-around h-full">
           {navItems.map(({ href, icon: Icon, label }) => {
-            const isActive = pathname === href
+            const active = isActive(href)
             return (
               <Link
                 key={href}
                 href={href}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 min-w-[60px]",
-                  isActive
+                  active
                     ? "text-purple-500"
                     : "text-muted-foreground hover:text-purple-500"
                 )}
