@@ -36,7 +36,7 @@ export async function POST(req: Request) {
         {
           role: "system",
           content:
-            "All Italian words and phrases should be wrapped in backticks in the markdown",
+            "All Italian words and phrases should be wrapped in backticks in the markdown even in tables.",
         },
       ],
     })

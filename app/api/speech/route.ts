@@ -1,20 +1,12 @@
-import { PollyClient, SynthesizeSpeechCommand, VoiceId } from "@aws-sdk/client-polly"
+import { NextResponse } from 'next/server'
 
-// Initialize Polly client
-const polly = new PollyClient({
-  region: "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-})
+export const runtime = 'edge'
 
 export async function GET(request: Request) {
   try {
     console.log('Speech route: Starting request')
     const { searchParams } = new URL(request.url)
     const text = searchParams.get('text')
-    const language = searchParams.get('language') || 'it'
 
     if (!text) {
       console.log('Speech route: Missing text parameter')
@@ -24,33 +16,37 @@ export async function GET(request: Request) {
       )
     }
 
-    const voiceMap: { [key: string]: VoiceId } = {
-      it: "Bianca", // Italian
-      es: "Conchita", // Spanish
-      fr: "Lea", // French
-      de: "Marlene", // German
-    }
-
-    const voice: VoiceId = voiceMap[language] || "Bianca"
-
-    const command = new SynthesizeSpeechCommand({
-      Text: text,
-      OutputFormat: "mp3",
-      VoiceId: voice,
-    })
-
-    const response = await polly.send(command)
-    const audioStream = response.AudioStream
-
-    if (!audioStream) {
-      throw new Error("No audio stream returned")
-    }
-
-    // Return the audio stream directly
-    return new Response(audioStream as any, {
-      headers: {
-        'Content-Type': 'audio/mpeg'
+    // Use ElevenLabs Turbo 2.5 with Italian voice
+    const response = await fetch(
+      "https://api.elevenlabs.io/v1/text-to-speech/JBFqnCBsd6RMkjVDRZzb/stream",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "xi-api-key": process.env.ELEVENLABS_API_KEY!,
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_turbo_v2_5",
+          language_code: "it",
+          optimize_streaming_latency: 3,
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
       }
+    )
+
+    if (!response.ok) {
+      throw new Error('Failed to generate speech')
+    }
+
+    // Stream the response directly to the client
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'audio/mpeg',
+      },
     })
 
   } catch (error) {
