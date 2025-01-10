@@ -22,13 +22,18 @@ export function MarkdownRenderer({
     try {
       setPlayingPhrase(phrase)
 
-      // Get the cached URL or generate new speech
       const response = await fetch(`/api/speech?text=${encodeURIComponent(phrase)}&language=it`)
-      if (!response.ok) throw new Error('Failed to get speech URL')
+      if (!response.ok) throw new Error('Failed to get speech')
 
-      const { url } = await response.json()
-      const audio = new Audio(url)
-      audio.onended = () => setPlayingPhrase(null)
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+
+      audio.onended = () => {
+        setPlayingPhrase(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
       await audio.play()
     } catch (error) {
       console.error('Error playing audio:', error)

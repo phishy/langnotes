@@ -90,17 +90,21 @@ export default function WordsPage() {
     setFilteredWords(filtered)
   }, [searchQuery, words])
 
-  async function playAudio(word: string, id: string) {
+  async function playAudio(text: string, id: string) {
     try {
       setPlayingId(id)
+      const response = await fetch(`/api/speech?text=${encodeURIComponent(text)}&language=it`)
+      if (!response.ok) throw new Error('Failed to get speech')
 
-      // Get the cached URL or generate new speech
-      const response = await fetch(`/api/speech?text=${encodeURIComponent(word)}&language=it`)
-      if (!response.ok) throw new Error('Failed to get speech URL')
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
 
-      const { url } = await response.json()
-      const audio = new Audio(url)
-      audio.onended = () => setPlayingId(null)
+      audio.onended = () => {
+        setPlayingId(null)
+        URL.revokeObjectURL(audioUrl)
+      }
+
       await audio.play()
     } catch (error) {
       console.error('Error playing audio:', error)

@@ -68,8 +68,18 @@ export default function WordPage({ params }: { params: Promise<{ wordId: string 
   async function playAudio(text: string) {
     try {
       setPlayingAudio(true)
-      const audio = new Audio(`/api/speech?text=${encodeURIComponent(text)}&language=it`)
-      audio.onended = () => setPlayingAudio(false)
+      const response = await fetch(`/api/speech?text=${encodeURIComponent(text)}&language=it`)
+      if (!response.ok) throw new Error('Failed to get speech')
+
+      const audioBlob = await response.blob()
+      const audioUrl = URL.createObjectURL(audioBlob)
+      const audio = new Audio(audioUrl)
+
+      audio.onended = () => {
+        setPlayingAudio(false)
+        URL.revokeObjectURL(audioUrl)
+      }
+
       await audio.play()
     } catch (error) {
       console.error('Error playing audio:', error)
