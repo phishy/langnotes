@@ -71,7 +71,7 @@ export default function SearchPage() {
             <div ref={messagesEndRef} />
           </div>
         </div>
-        <div className="flex-none pb-[60px]">
+        <div className="flex-none pb-[100px]">
           <ChatInput
             value={input}
             onChange={handleInputChange}
