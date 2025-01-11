@@ -57,7 +57,7 @@ export default function SearchLayout({
         <div className="pb-16">{children}</div>
       </main>
 
-      <nav className="fixed bottom-0 left-0 right-0 h-16 border-t bg-background">
+      <nav className="fixed bottom-0 mb-10 left-0 right-0 h-16 border-t bg-background">
         <div className="flex justify-around h-full">
           {navItems.map(({ href, icon: Icon, label }) => {
             const active = isActive(href)

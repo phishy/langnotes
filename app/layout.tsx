@@ -10,6 +10,20 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'LangNotes',
   description: 'AI-powered language learning platform',
+  manifest: '/manifest.json',
+  themeColor: '#000000',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'LangNotes',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+    viewportFit: 'cover',
+  },
 };
 
 export default function RootLayout({
@@ -20,10 +34,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-        />
+        <link rel="apple-touch-icon" href="/icon-512x512.png" />
+        <link rel="apple-touch-startup-image" href="/splash.png" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="LangNotes" />
       </head>
       <body className={cn(inter.className, "antialiased")}>
         <ThemeProvider
